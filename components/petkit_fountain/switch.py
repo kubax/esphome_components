@@ -31,11 +31,14 @@ async def to_code(config):
     if CONF_LIGHT_SWITCH in config:
         sw = await switch.new_switch(config[CONF_LIGHT_SWITCH])
         cg.add(sw.set_parent(parent))
+        cg.add(parent.set_light_switch(sw))
 
     if CONF_DND_SWITCH in config:
         sw = await switch.new_switch(config[CONF_DND_SWITCH])
         cg.add(sw.set_parent(parent))
+        cg.add(parent.set_dnd_switch(sw))
 
     if CONF_POWER_SWITCH in config:
         sw = await switch.new_switch(config[CONF_POWER_SWITCH])
         cg.add(sw.set_parent(parent))
+        cg.add(parent.set_power_switch(sw))
