@@ -211,6 +211,24 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   void set_dnd_end_min_sensor(sensor::Sensor *s) { dnd_end_min_ = s; }
   void set_serial_text_sensor(text_sensor::TextSensor *s) { serial_ts_ = s; }
 
+  // switch setters
+  void set_power_switch(switch_::Switch *s) { power_sw_ = s; }
+  void set_light_switch(switch_::Switch *s) { light_sw_ = s; }
+  void set_dnd_switch(switch_::Switch *s) { dnd_sw_ = s; }
+  
+  // number setters
+  void set_brightness_number(number::Number *n) { brightness_num_ = n; }
+  void set_light_start_number(number::Number *n) { light_start_num_ = n; }
+  void set_light_end_number(number::Number *n) { light_end_num_ = n; }
+  void set_dnd_start_number(number::Number *n) { dnd_start_num_ = n; }
+  void set_dnd_end_number(number::Number *n) { dnd_end_num_ = n; }
+  
+  // select setter
+  void set_mode_select(select::Select *s) { mode_sel_ = s; }
+  
+  // text sensor setter
+  void set_serial_text_sensor(text_sensor::TextSensor *t) { serial_text_ = t; }
+
   // entity attachers
   void set_light_switch(PetkitLightSwitch *s) { light_sw_ = s; s->set_parent(this); }
   void set_dnd_switch(PetkitDndSwitch *s) { dnd_sw_ = s; s->set_parent(this); }
@@ -535,6 +553,23 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   sensor::Sensor *dnd_start_min_{nullptr};
   sensor::Sensor *dnd_end_min_{nullptr};
 
+  // switches (aus switch.py)
+  switch_::Switch *power_sw_{nullptr};
+  switch_::Switch *light_sw_{nullptr};
+  switch_::Switch *dnd_sw_{nullptr};
+  
+  // numbers (aus number.py)
+  number::Number *brightness_num_{nullptr};
+  number::Number *light_start_num_{nullptr};
+  number::Number *light_end_num_{nullptr};
+  number::Number *dnd_start_num_{nullptr};
+  number::Number *dnd_end_num_{nullptr};
+  
+  // select (aus select.py)
+  select::Select *mode_sel_{nullptr};
+  
+  // text_sensor (aus text_sensor.py)
+  text_sensor::TextSensor *serial_text_{nullptr};
 
   // entities
   PetkitLightSwitch *light_sw_{nullptr};
@@ -951,6 +986,9 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
       if (dnd_start_min_) dnd_start_min_->publish_state(dnd_start);
       if (dnd_end_min_)   dnd_end_min_->publish_state(dnd_end);
     
+      ESP_LOGD(TAG, "entities: pwr_sw=%p light_sw=%p dnd_sw=%p mode_sel=%p bright=%p",
+         (void*) power_sw_, (void*) light_sw_, (void*) dnd_sw_, (void*) mode_sel_, (void*) brightness_num_);
+
       return;
     }
 
