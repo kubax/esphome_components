@@ -13,10 +13,84 @@
 #include <string>
 #include <cmath>
 #include <ctime>
+#include <cctype>
+#include <cstdint>
+#include <string>
+#include <vector>
 #include <esp_gattc_api.h>
 
 namespace esphome {
 namespace petkit_fountain {
+
+struct Petkit213Info {
+  bool ok{false};
+  uint8_t cmd{0};
+  uint8_t type{0};
+  uint8_t seq{0};
+  uint8_t data_len{0};
+
+  std::vector<uint8_t> device_id_bytes;  // 6 bytes (data[2:8])
+  uint64_t device_id_int{0};             // big endian from those 6 bytes
+  std::string serial;                    // printable ASCII run
+};
+
+static inline bool petkit_is_printable_ascii_(uint8_t b) {
+  return (b >= 0x20 && b <= 0x7E);
+}
+
+static Petkit213Info petkit_parse_cmd213_(const uint8_t *frame, size_t len) {
+  Petkit213Info out;
+
+  // Minimum: 3 header + cmd/type/seq/len/start + end = 9 bytes
+  if (len < 9) return out;
+
+  if (frame[0] != 0xFA || frame[1] != 0xFC || frame[2] != 0xFD) return out;
+  if (frame[len - 1] != 0xFB) return out;
+
+  out.cmd = frame[3];
+  out.type = frame[4];
+  out.seq = frame[5];
+  out.data_len = frame[6];
+  // uint8_t data_start = frame[7]; // expected 0; not strictly required
+
+  // Expected total frame length: 9 + data_len
+  if (len != static_cast<size_t>(9 + out.data_len)) return out;
+  if (out.cmd != 0xD5) return out;  // 213
+
+  const uint8_t *data = frame + 8;
+  const size_t dlen = out.data_len;
+
+  // Python does: device_id_bytes = data[2:8] (6 bytes)
+  if (dlen < 8) return out;
+  out.device_id_bytes.assign(data + 2, data + 8);
+
+  out.device_id_int = 0;
+  for (auto b : out.device_id_bytes) out.device_id_int = (out.device_id_int << 8) | (uint64_t) b;
+
+  // Extract longest printable ASCII run (serial sits at tail for CTW2)
+  size_t best_start = 0, best_len = 0;
+  size_t cur_start = 0, cur_len = 0;
+
+  for (size_t i = 0; i < dlen; i++) {
+    if (petkit_is_printable_ascii_(data[i])) {
+      if (cur_len == 0) cur_start = i;
+      cur_len++;
+      if (cur_len > best_len) {
+        best_len = cur_len;
+        best_start = cur_start;
+      }
+    } else {
+      cur_len = 0;
+    }
+  }
+
+  if (best_len >= 6) {
+    out.serial.assign(reinterpret_cast<const char *>(data + best_start), best_len);
+  }
+
+  out.ok = true;
+  return out;
+}
 
 class PetkitFountain;
 
@@ -136,6 +210,14 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
 
   void loop() override {
     process_tx_queue_();
+    // Auto-init: send CMD213 once after notify is ready
+    if (this->notify_ready_ && !this->auto_213_sent_ && millis() > this->auto_213_at_ms_) {
+      // enqueue cmd=213 type=1 seq=... data=[0,0]
+      this->enqueue_cmd_(213, 1, {0x00, 0x00});
+      this->auto_213_sent_ = true;
+      ESP_LOGD(TAG, "Auto TX: CMD213 requested");
+    }
+
   }
 
   void gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
@@ -188,6 +270,14 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
       }
 
                                 
+      case ESP_GATTC_WRITE_DESCR_EVT: {
+        // Existing log bleibt; dann:
+        this->notify_ready_ = true;
+        this->auto_213_sent_ = false;
+        this->auto_213_at_ms_ = millis() + 1500;  // 1.5s Delay, entspricht "manuell später drücken"
+        ESP_LOGD(TAG, "Notify ready; scheduling auto CMD213 in 1500ms");
+        break;
+      }
 
       case ESP_GATTC_DISCONNECT_EVT:
       case ESP_GATTC_CLOSE_EVT:
@@ -297,6 +387,15 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
 
  private:
   static constexpr const char *TAG = "petkit_fountain";
+
+  bool notify_ready_{false};
+  bool auto_213_sent_{false};
+  uint32_t auto_213_at_ms_{0};
+
+  std::vector<uint8_t> device_id_bytes_;
+  uint64_t device_id_int_{0};
+  std::string serial_;
+  bool have_identifiers_{false};
 
   // UUIDs
   esp32_ble::ESPBTUUID service_uuid_;
@@ -447,47 +546,68 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   }
 
   void handle_frame_(const uint8_t *data, size_t len) {
-    if (len < 8) return;
+    // Petkit frame min length: 9 bytes (FA FC FD + cmd/type/seq/len/start + FB)
+    if (len < 9) return;
     if (!(data[0] == 0xFA && data[1] == 0xFC && data[2] == 0xFD)) return;
+    if (data[len - 1] != 0xFB) return;
+  
     const uint8_t cmd = data[3];
-
+  
+    // ----- CMD213: device identifiers -----
+    if (cmd == 0xD5) {  // 213
+      auto info = petkit_parse_cmd213_(data, len);
+      if (info.ok) {
+        this->device_id_bytes_ = info.device_id_bytes;
+        this->device_id_int_ = info.device_id_int;
+        this->serial_ = info.serial;
+        this->have_identifiers_ = true;
+  
+        ESP_LOGI(TAG, "CMD213 parsed: device_id=%llu serial=%s",
+                 (unsigned long long) this->device_id_int_,
+                 this->serial_.c_str());
+      } else {
+        ESP_LOGW(TAG, "CMD213 received but parse failed (len=%u)", (unsigned) len);
+      }
+      return;
+    }
+  
+    // ----- CMD230 or other notify frames can be handled here too -----
+  
+    // ----- CMD0xE6 (your existing state/config frame) -----
     if (cmd == 0xE6 && len >= 24) {
       last_power_ = data[8];
       last_mode_ = data[9];
-
+  
       if (power_) power_->publish_state(data[8]);
       if (mode_) mode_->publish_state(data[9]);
       if (power_sw_) power_sw_->publish_state(data[8] != 0);
       if (mode_sel_) mode_sel_->publish_state((data[9] == 2) ? "smart" : "normal");
-
+  
       if (filter_percent_ && len > 18) filter_percent_->publish_state(data[18]);
-
+  
       // settings part
       if (len >= 38) {
         if (light_sw_) light_sw_->publish_state(data[26] != 0);
         if (dnd_sw_) dnd_sw_->publish_state(data[32] != 0);
         if (brightness_num_) brightness_num_->publish_state((float) data[27]);
-
-        // store baseline config
+  
         last_config_payload_.assign({
           data[24], data[25], data[26], data[27],
           data[28], data[29], data[30], data[31],
           data[32], data[33], data[34], data[35], data[36]
         });
-
-        // update time numbers if present
+  
         uint16_t ls = u16_be_(&data[28]);
         uint16_t le = u16_be_(&data[30]);
         uint16_t ds = u16_be_(&data[33]);
         uint16_t de = u16_be_(&data[35]);
-        for (auto *tn : time_nums_) {
-          if (!tn) continue;
-          // we don't know which instance is which without storing kind in object; control() stores kind.
-          // We'll update via current state if set_kind used.
-        }
-        // If you want automatic publish by kind, we can store pointers per kind; omitted for brevity.
+        (void) ls; (void) le; (void) ds; (void) de;
       }
+      return;
     }
+  
+    // optional: log unknown cmds
+    ESP_LOGD(TAG, "Unhandled cmd=0x%02X len=%u", cmd, (unsigned) len);
   }
 };
 
