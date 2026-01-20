@@ -620,7 +620,7 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
     uint8_t value{0};  // usually 1 = ok
   };
   
-  static PetkitAck petkit_parse_ack_(const uint8_t *frame, size_t len, uint8_t expected_cmd) {
+  static PetkitAck petkit_parse_ack_(const uint8_t *frame, size_t len) {
     PetkitAck out;
     if (len < 9) return out;
     if (frame[0] != 0xFA || frame[1] != 0xFC || frame[2] != 0xFD) return out;
