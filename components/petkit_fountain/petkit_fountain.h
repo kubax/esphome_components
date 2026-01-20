@@ -337,9 +337,11 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
     return (uint32_t(p[0]) << 24) | (uint32_t(p[1]) << 16) | (uint32_t(p[2]) << 8) | uint32_t(p[3]);
   }
 
-  std::vector<uint8_t> build_cmd_(uint8_t seq, uint8_t cmd, uint8_t type, const std::vector<uint8_t> &data) {
+  std::vector<uint8_t> build_cmd_(uint8_t seq, uint8_t cmd, uint8_t type,
+                                 const std::vector<uint8_t> &data) {
     std::vector<uint8_t> out;
-    out.reserve(8 + data.size());
+    out.reserve(3 + 1 + 1 + 1 + 1 + 1 + data.size() + 1);
+  
     out.push_back(0xFA);
     out.push_back(0xFC);
     out.push_back(0xFD);
@@ -347,8 +349,10 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
     out.push_back(type);
     out.push_back(seq);
     out.push_back((uint8_t) data.size());
-    out.push_back(0x00);
+    out.push_back(0x00);              // data_start
     out.insert(out.end(), data.begin(), data.end());
+    out.push_back(0xFB);              // end_byte
+  
     return out;
   }
 
