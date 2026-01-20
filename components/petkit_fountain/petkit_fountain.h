@@ -499,6 +499,10 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   std::array<uint8_t, 8> device_id8_{};
   bool have_secret_{false};
 
+  bool have_init_{false};   // CMD73 accepted (ACK 0x49)
+  bool have_sync_{false};   // CMD86 accepted (ACK 0x56)
+  bool have_time_{false};   // CMD84 accepted (ACK 0x54)
+
   // UUIDs
   esp32_ble::ESPBTUUID service_uuid_;
   esp32_ble::ESPBTUUID notify_uuid_;
@@ -627,7 +631,6 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
     const uint8_t seq = frame[5];
     const uint8_t dlen = frame[6];
   
-    if (cmd != expected_cmd) return out;
     if (type != 0x02) return out;
     if (len != (size_t)(9 + dlen)) return out;
     if (dlen < 1) return out;
@@ -635,7 +638,7 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
     out.ok = true;
     out.cmd = cmd;
     out.seq = seq;
-    out.value = frame[8];  // first data byte
+    out.value = frame[8];
     return out;
   }
 
@@ -882,15 +885,28 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
       return;
     }
 
-    if (cmd == 0x54) {  // ACK for CMD84
-      auto ack = petkit_parse_ack_(data, len, 0x54);
+    // Generic ACKs (CMD73=0x49, CMD86=0x56, CMD84=0x54)
+    if (cmd == 0x49 || cmd == 0x56 || cmd == 0x54) {
+      auto ack = petkit_parse_ack_(data, len);
       if (ack.ok) {
-        ESP_LOGI(TAG, "CMD84 ACK: seq=%u status=%u", ack.seq, ack.value);
+        // ack.value: typically 1 = OK
+        if (ack.cmd == 0x49) {
+          ESP_LOGI(TAG, "CMD73 ACK: seq=%u status=%u", ack.seq, ack.value);
+          // optional: set a flag that init was accepted
+          this->have_init_ = (ack.value == 1);
+        } else if (ack.cmd == 0x56) {
+          ESP_LOGI(TAG, "CMD86 ACK: seq=%u status=%u", ack.seq, ack.value);
+          this->have_sync_ = (ack.value == 1);
+        } else if (ack.cmd == 0x54) {
+          ESP_LOGI(TAG, "CMD84 ACK: seq=%u status=%u", ack.seq, ack.value);
+          this->have_time_ = (ack.value == 1);
+        }
       } else {
-        ESP_LOGW(TAG, "CMD84 ACK parse failed (len=%u)", (unsigned) len);
+        ESP_LOGW(TAG, "ACK parse failed cmd=0x%02X len=%u", cmd, (unsigned) len);
       }
       return;
     }
+
 
     if (cmd == 0xD2) {  // response to CMD210
       auto st = petkit_parse_state_d2_(data, len);
