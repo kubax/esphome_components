@@ -62,6 +62,7 @@ class PetkitTimeNumber : public PetkitBaseNumber {
  public:
   enum Kind { LIGHT_START, LIGHT_END, DND_START, DND_END };
   void set_kind(Kind k) { kind_ = k; }
+  void set_kind(int k) { kind_ = (Kind) k; }
 
  protected:
   void control(float value) override;
