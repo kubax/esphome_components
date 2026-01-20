@@ -186,8 +186,25 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   }
 
   // ---------- called by entities ----------
-  void set_light_enabled(bool on) { apply_config_partial_("light", on ? 1 : 0, -1, -1, -1, -1, -1, -1); }
-  void set_dnd_enabled(bool on) { apply_config_partial_("dnd", -1, -1, -1, -1, on ? 1 : 0, -1, -1); }
+  void set_light_enabled(bool on) {
+  apply_config_partial_("light",
+      -1, -1,                 // smart_work, smart_sleep
+      on ? 1 : 0, -1,          // light_switch, light_brightness
+      -1,                      // dnd_switch
+      -1, -1,                  // light_start, light_end
+      -1, -1                   // dnd_start, dnd_end
+    );
+  }
+  
+  void set_dnd_enabled(bool on) {
+    apply_config_partial_("dnd",
+      -1, -1,                  // smart_work, smart_sleep
+      -1, -1,                  // light_switch, light_brightness
+      on ? 1 : 0,               // dnd_switch
+      -1, -1,                  // light_start, light_end
+      -1, -1                   // dnd_start, dnd_end
+    );
+  }
 
   void set_power(bool on) {
     uint8_t m = last_mode_ == 2 ? 2 : 1;
@@ -204,18 +221,52 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
     int iv = (int) lroundf(v);
     if (iv < 0) iv = 0;
     if (iv > 255) iv = 255;
-    apply_config_partial_("brightness", -1, iv, -1, -1, -1, -1, -1, -1);
+    apply_config_partial_("brightness",
+      -1, -1,
+      -1, iv,
+      -1,
+      -1, -1,
+      -1, -1
+    );
   }
-
+  
   void set_time(PetkitTimeNumber::Kind kind, float v) {
     int mins = (int) lroundf(v);
     if (mins < 0) mins = 0;
     if (mins > 1439) mins = 1439;
+  
     switch (kind) {
-      case PetkitTimeNumber::LIGHT_START: apply_config_partial_("light_start", -1, -1, mins, -1, -1, -1, -1, -1); break;
-      case PetkitTimeNumber::LIGHT_END:   apply_config_partial_("light_end",   -1, -1, -1, mins, -1, -1, -1, -1); break;
-      case PetkitTimeNumber::DND_START:   apply_config_partial_("dnd_start",   -1, -1, -1, -1, -1, mins, -1, -1); break;
-      case PetkitTimeNumber::DND_END:     apply_config_partial_("dnd_end",     -1, -1, -1, -1, -1, -1, mins, -1); break;
+      case PetkitTimeNumber::LIGHT_START:
+        apply_config_partial_("light_start",
+          -1, -1, -1, -1, -1,
+          mins, -1,
+          -1, -1
+        );
+        break;
+  
+      case PetkitTimeNumber::LIGHT_END:
+        apply_config_partial_("light_end",
+          -1, -1, -1, -1, -1,
+          -1, mins,
+          -1, -1
+        );
+        break;
+  
+      case PetkitTimeNumber::DND_START:
+        apply_config_partial_("dnd_start",
+          -1, -1, -1, -1, -1,
+          -1, -1,
+          mins, -1
+        );
+        break;
+  
+      case PetkitTimeNumber::DND_END:
+        apply_config_partial_("dnd_end",
+          -1, -1, -1, -1, -1,
+          -1, -1,
+          -1, mins
+        );
+        break;
     }
   }
 
