@@ -853,59 +853,135 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
     // ----- CMD230 or other notify frames can be handled here too -----
   
     // ----- CMD0xE6 (your existing state/config frame) -----
-    if (cmd == 0xE6 && len >= 24) {
-      last_power_ = data[8];
-      last_mode_ = data[9];
-  
-      if (power_) power_->publish_state(data[8]);
-      if (mode_) mode_->publish_state(data[9]);
-      if (power_sw_) power_sw_->publish_state(data[8] != 0);
-      if (mode_sel_) mode_sel_->publish_state((data[9] == 2) ? "smart" : "normal");
-  
-      if (filter_percent_ && len > 18) filter_percent_->publish_state(data[18]);
-  
-      // settings part
-      if (len >= 38) {
-        if (light_sw_) light_sw_->publish_state(data[26] != 0);
-        if (dnd_sw_) dnd_sw_->publish_state(data[32] != 0);
-        if (brightness_num_) brightness_num_->publish_state((float) data[27]);
-  
-        last_config_payload_.assign({
-          data[24], data[25], data[26], data[27],
-          data[28], data[29], data[30], data[31],
-          data[32], data[33], data[34], data[35], data[36]
-        });
-  
-        uint16_t ls = u16_be_(&data[28]);
-        uint16_t le = u16_be_(&data[30]);
-        uint16_t ds = u16_be_(&data[33]);
-        uint16_t de = u16_be_(&data[35]);
-        (void) ls; (void) le; (void) ds; (void) de;
-      }
+    // if (cmd == 0xE6 && len >= 24) {
+    //   last_power_ = data[8];
+    //   last_mode_ = data[9];
+    //
+    //   if (power_) power_->publish_state(data[8]);
+    //   if (mode_) mode_->publish_state(data[9]);
+    //   if (power_sw_) power_sw_->publish_state(data[8] != 0);
+    //   if (mode_sel_) mode_sel_->publish_state((data[9] == 2) ? "smart" : "normal");
+    //
+    //   if (filter_percent_ && len > 18) filter_percent_->publish_state(data[18]);
+    //
+    //   // settings part
+    //   if (len >= 38) {
+    //     if (light_sw_) light_sw_->publish_state(data[26] != 0);
+    //     if (dnd_sw_) dnd_sw_->publish_state(data[32] != 0);
+    //     if (brightness_num_) brightness_num_->publish_state((float) data[27]);
+    //
+    //     last_config_payload_.assign({
+    //       data[24], data[25], data[26], data[27],
+    //       data[28], data[29], data[30], data[31],
+    //       data[32], data[33], data[34], data[35], data[36]
+    //     });
+    //
+    //     uint16_t ls = u16_be_(&data[28]);
+    //     uint16_t le = u16_be_(&data[30]);
+    //     uint16_t ds = u16_be_(&data[33]);
+    //     uint16_t de = u16_be_(&data[35]);
+    //     (void) ls; (void) le; (void) ds; (void) de;
+    //   }
+    //   return;
+    // }
+    if (cmd == 0xE6 && len >= 38) {
+      const uint8_t power = data[8];
+      const uint8_t mode  = data[9];
+    
+      const uint8_t night_dnd = data[10];
+      const uint8_t breakdown_warn = data[11];
+      const uint8_t lack_warn = data[12];
+      const uint8_t filter_warn = data[13];
+    
+      const uint32_t pump_runtime =
+          ((uint32_t)data[14] << 24) | ((uint32_t)data[15] << 16) | ((uint32_t)data[16] << 8) | (uint32_t)data[17];
+    
+      const uint8_t filter_percent = data[18];
+      const uint8_t run_status = data[19];
+    
+      const uint32_t today_runtime =
+          ((uint32_t)data[20] << 24) | ((uint32_t)data[21] << 16) | ((uint32_t)data[22] << 8) | (uint32_t)data[23];
+    
+      // --- publish base state ---
+      if (power_) power_->publish_state(power);
+      if (mode_) mode_->publish_state(mode);
+    
+      if (power_sw_) power_sw_->publish_state(power != 0);
+      if (mode_sel_) mode_sel_->publish_state((mode == 2) ? "smart" : "normal");
+    
+      if (filter_percent_) filter_percent_->publish_state(filter_percent);
+    
+      // --- publish warnings / flags (if you have the sensors) ---
+      if (is_night_dnd_) is_night_dnd_->publish_state(night_dnd);
+      if (breakdown_warning_) breakdown_warning_->publish_state(breakdown_warn);
+      if (lack_warning_) lack_warning_->publish_state(lack_warn);
+      if (filter_warning_) filter_warning_->publish_state(filter_warn);
+    
+      if (run_status_) run_status_->publish_state(run_status);
+    
+      // --- runtimes ---
+      if (water_pump_runtime_seconds_) water_pump_runtime_seconds_->publish_state((float) pump_runtime);
+      if (today_pump_runtime_seconds_) today_pump_runtime_seconds_->publish_state((float) today_runtime);
+    
+      // --- settings block ---
+      const uint8_t smart_on  = data[24];
+      const uint8_t smart_off = data[25];
+      const uint8_t light_sw  = data[26];
+      const uint8_t brightness = data[27];
+    
+      const uint16_t light_start = ((uint16_t)data[28] << 8) | data[29];
+      const uint16_t light_end   = ((uint16_t)data[30] << 8) | data[31];
+    
+      const uint8_t dnd_sw = data[32];
+      const uint16_t dnd_start = ((uint16_t)data[33] << 8) | data[34];
+      const uint16_t dnd_end   = ((uint16_t)data[35] << 8) | data[36];
+    
+      if (smart_working_time_) smart_working_time_->publish_state(smart_on);
+      if (smart_sleep_time_) smart_sleep_time_->publish_state(smart_off);
+    
+      // Diese beiden sind bei dir aktuell als "Sensor" implementiert – daher publish_state() ok.
+      // Wenn du später echte ESPHome switches/numbers draus machst, musst du die jeweiligen publish APIs nutzen.
+      if (light_switch_) light_switch_->publish_state(light_sw);
+      if (light_brightness_) light_brightness_->publish_state(brightness);
+    
+      if (light_schedule_start_min_) light_schedule_start_min_->publish_state(light_start);
+      if (light_schedule_end_min_)   light_schedule_end_min_->publish_state(light_end);
+    
+      if (dnd_switch_) dnd_switch_->publish_state(dnd_sw);
+      if (dnd_start_min_) dnd_start_min_->publish_state(dnd_start);
+      if (dnd_end_min_)   dnd_end_min_->publish_state(dnd_end);
+    
       return;
     }
 
-    // Generic ACKs (CMD73=0x49, CMD86=0x56, CMD84=0x54)
-    if (cmd == 0x49 || cmd == 0x56 || cmd == 0x54) {
+
+    // Generic ACKs (format: FA FC FD <cmd> 02 <seq> 01 00 <status> FB)
+    if (cmd == 0x49 || cmd == 0x56 || cmd == 0x54 || cmd == 0xDC || cmd == 0xDD) {
       auto ack = petkit_parse_ack_(data, len);
       if (ack.ok) {
-        // ack.value: typically 1 = OK
         if (ack.cmd == 0x49) {
           ESP_LOGI(TAG, "CMD73 ACK: seq=%u status=%u", ack.seq, ack.value);
-          // optional: set a flag that init was accepted
-          this->have_init_ = (ack.value == 1);
+          have_init_ = (ack.value == 1);
         } else if (ack.cmd == 0x56) {
           ESP_LOGI(TAG, "CMD86 ACK: seq=%u status=%u", ack.seq, ack.value);
-          this->have_sync_ = (ack.value == 1);
+          have_sync_ = (ack.value == 1);
         } else if (ack.cmd == 0x54) {
           ESP_LOGI(TAG, "CMD84 ACK: seq=%u status=%u", ack.seq, ack.value);
-          this->have_time_ = (ack.value == 1);
+          have_time_ = (ack.value == 1);
+        } else if (ack.cmd == 0xDC) {
+          ESP_LOGI(TAG, "CMD220 ACK: seq=%u status=%u", ack.seq, ack.value);
+          // optional: track last control success
+          last_cmd220_ok_ = (ack.value == 1);
+        } else if (ack.cmd == 0xDD) {
+          ESP_LOGI(TAG, "CMD221 ACK: seq=%u status=%u", ack.seq, ack.value);
+          last_cmd221_ok_ = (ack.value == 1);
         }
       } else {
         ESP_LOGW(TAG, "ACK parse failed cmd=0x%02X len=%u", cmd, (unsigned) len);
       }
       return;
     }
+
 
 
     if (cmd == 0xD2) {  // response to CMD210
