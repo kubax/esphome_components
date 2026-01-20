@@ -89,6 +89,7 @@ class PetkitActionButton : public button::Button {
   enum Action { REFRESH, RESET_FILTER, SET_DATETIME, INIT_SESSION, SYNC };
   void set_parent(PetkitFountain *p) { parent_ = p; }
   void set_action(Action a) { action_ = a; }
+  void set_action(int a) { action_ = (Action) a; }
 
  protected:
   void press_action() override;
