@@ -376,7 +376,8 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   void cmd_get_config_() { enqueue_(211, 1, {0x00, 0x00}); }
   void cmd_get_battery_() { enqueue_(66, 1, {0x00, 0x00}); }
   void cmd_refresh_() {
-          cmd_get_state_();
+          ESP_LOGD(TAG, "cmd_refresh called);
+  //        cmd_get_state_();
   //        cmd_get_config_();
   //        cmd_get_battery_();
   }
