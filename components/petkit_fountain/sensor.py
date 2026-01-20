@@ -80,8 +80,7 @@ async def to_code(config):
         config[CONF_WRITE_UUID],
     )
     await cg.register_component(var, config)
-    # await ble_client.register_ble_node(var, config)
-    await ble_client.register_ble_node(var, config[CONF_BLE_CLIENT_ID])
+    await ble_client.register_ble_node(var, config)
 
     if CONF_POWER in config:
         s = await sensor.new_sensor(config[CONF_POWER])
