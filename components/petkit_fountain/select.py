@@ -24,3 +24,4 @@ async def to_code(config):
         # Options are defined here (works across versions)
         sel = await select.new_select(config[CONF_MODE_SELECT], options=["normal", "smart"])
         cg.add(sel.set_parent(parent))
+        cg.add(parent.set_mode_select(sel))
