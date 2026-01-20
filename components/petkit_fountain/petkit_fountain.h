@@ -228,6 +228,62 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
       this->cmd210_sent_after_213_ = true;
       ESP_LOGD(TAG, "TX scheduled CMD210 fired");
     }
+    if (this->init_stage_ != INIT_NONE && (int32_t)(millis() - this->init_at_ms_) >= 0) {
+      switch (this->init_stage_) {
+        case INIT_SEND_73: {
+          // CMD73 payload: [0,0] + device_id(8) + secret(8)
+          std::vector<uint8_t> payload;
+          payload.reserve(2 + 8 + 8);
+          payload.push_back(0x00);
+          payload.push_back(0x00);
+          payload.insert(payload.end(), device_id8_.begin(), device_id8_.end());
+          payload.insert(payload.end(), secret_.begin(), secret_.end());
+    
+          this->enqueue_cmd_(73, 1, payload);
+          ESP_LOGD(TAG, "Init chain: sent CMD73");
+          this->init_stage_ = INIT_SEND_86;
+          this->init_at_ms_ = millis() + 1500;
+          break;
+        }
+    
+        case INIT_SEND_86: {
+          // CMD86 payload: [0,0] + secret(8)
+          std::vector<uint8_t> payload;
+          payload.reserve(2 + 8);
+          payload.push_back(0x00);
+          payload.push_back(0x00);
+          payload.insert(payload.end(), secret_.begin(), secret_.end());
+    
+          this->enqueue_cmd_(86, 1, payload);
+          ESP_LOGD(TAG, "Init chain: sent CMD86");
+          this->init_stage_ = INIT_SEND_84;
+          this->init_at_ms_ = millis() + 750;
+          break;
+        }
+    
+        case INIT_SEND_84: {
+          // CMD84 payload: Utils.time_in_bytes() equivalent: [0, sec>>24, sec>>16, sec>>8, sec, 13]
+          // Reference time: 2000-01-01 UTC. If you already implemented time bytes, call that.
+          auto t = this->build_time_bytes_();  // <-- implement or reuse existing
+          this->enqueue_cmd_(84, 1, t);
+          ESP_LOGD(TAG, "Init chain: sent CMD84");
+          this->init_stage_ = INIT_SEND_210;
+          this->init_at_ms_ = millis() + 750;
+          break;
+        }
+    
+        case INIT_SEND_210: {
+          this->enqueue_cmd_(210, 1, {0x00, 0x00});
+          ESP_LOGD(TAG, "Init chain: sent CMD210");
+          this->init_stage_ = INIT_NONE;
+          break;
+        }
+    
+        default:
+          this->init_stage_ = INIT_NONE;
+          break;
+      }
+    }
   }
 
   void gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
@@ -413,6 +469,14 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   bool cmd210_sent_after_213_{false};
   uint32_t cmd210_at_ms_{0};
 
+  enum InitStage : uint8_t { INIT_NONE, INIT_SEND_73, INIT_SEND_86, INIT_SEND_84, INIT_SEND_210 };
+  InitStage init_stage_{INIT_NONE};
+  uint32_t init_at_ms_{0};
+  
+  std::array<uint8_t, 8> secret_{};
+  std::array<uint8_t, 8> device_id8_{};
+  bool have_secret_{false};
+
   // UUIDs
   esp32_ble::ESPBTUUID service_uuid_;
   esp32_ble::ESPBTUUID notify_uuid_;
@@ -451,6 +515,37 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   static uint32_t u32_be_(const uint8_t *p) {
     return (uint32_t(p[0]) << 24) | (uint32_t(p[1]) << 16) | (uint32_t(p[2]) << 8) | uint32_t(p[3]);
   }
+
+  void compute_secret_from_device_id_() {
+    // device_id_bytes_ is 6 bytes (may be all 0)
+    // Build device_id8_ = pad left with zeros to 8
+    device_id8_.fill(0);
+    int di_len = (int) this->device_id_bytes_.size();
+    for (int i = 0; i < di_len && i < 8; i++) {
+      device_id8_[8 - di_len + i] = this->device_id_bytes_[i];
+    }
+  
+    // secret = reverse(device_id_bytes) + replace last two if zero + pad left to 8
+    std::vector<uint8_t> tmp = this->device_id_bytes_;
+    std::reverse(tmp.begin(), tmp.end());
+    if (tmp.size() >= 2 && tmp[tmp.size() - 1] == 0 && tmp[tmp.size() - 2] == 0) {
+      tmp[tmp.size() - 2] = 13;
+      tmp[tmp.size() - 1] = 37;
+    }
+  
+    secret_.fill(0);
+    int s_len = (int) tmp.size();
+    for (int i = 0; i < s_len && i < 8; i++) {
+      secret_[8 - s_len + i] = tmp[i];
+    }
+  
+    have_secret_ = true;
+  
+    ESP_LOGI(TAG, "Secret computed. device_id8=%02X%02X%02X%02X%02X%02X%02X%02X secret=%02X%02X%02X%02X%02X%02X%02X%02X",
+             device_id8_[0], device_id8_[1], device_id8_[2], device_id8_[3], device_id8_[4], device_id8_[5], device_id8_[6], device_id8_[7],
+             secret_[0], secret_[1], secret_[2], secret_[3], secret_[4], secret_[5], secret_[6], secret_[7]);
+  }
+
 
   std::vector<uint8_t> build_cmd_(uint8_t seq, uint8_t cmd, uint8_t type,
                                  const std::vector<uint8_t> &data) {
@@ -582,11 +677,16 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
         ESP_LOGI(TAG, "CMD213 parsed: device_id=%llu serial=%s",
                  (unsigned long long) this->device_id_int_,
                  this->serial_.c_str());
-        // schedule CMD210 1.5s after identifiers
-        this->schedule_cmd210_ = true;
-        this->cmd210_at_ms_ = millis() + 1500;
-        this->cmd210_sent_after_213_ = false;
-        ESP_LOGD(TAG, "Scheduling CMD210 in 1500ms after CMD213");
+        // // schedule CMD210 1.5s after identifiers
+        // this->schedule_cmd210_ = true;
+        // this->cmd210_at_ms_ = millis() + 1500;
+        // this->cmd210_sent_after_213_ = false;
+        // ESP_LOGD(TAG, "Scheduling CMD210 in 1500ms after CMD213");
+        this->compute_secret_from_device_id_();
+        this->init_stage_ = INIT_SEND_73;
+        this->init_at_ms_ = millis() + 1500;
+        ESP_LOGD(TAG, "Starting init chain: CMD73 in 1500ms");
+
       } else {
         ESP_LOGW(TAG, "CMD213 received but parse failed (len=%u)", (unsigned) len);
       }
