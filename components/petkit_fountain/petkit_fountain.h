@@ -7,6 +7,7 @@
 #include "esphome/components/number/number.h"
 #include "esphome/components/select/select.h"
 #include "esphome/components/button/button.h"
+#include "esphome/components/text_sensor/text_sensor.h"
 
 #include <deque>
 #include <vector>
@@ -186,6 +187,7 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   void set_power_sensor(sensor::Sensor *s) { power_ = s; }
   void set_mode_sensor(sensor::Sensor *s) { mode_ = s; }
   void set_filter_percent_sensor(sensor::Sensor *s) { filter_percent_ = s; }
+  void set_serial_text_sensor(text_sensor::TextSensor *s) { serial_ts_ = s; }
 
   // entity attachers
   void set_light_switch(PetkitLightSwitch *s) { light_sw_ = s; s->set_parent(this); }
@@ -397,6 +399,8 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   std::string serial_;
   bool have_identifiers_{false};
 
+  text_sensor::TextSensor *serial_ts_{nullptr};
+
   // UUIDs
   esp32_ble::ESPBTUUID service_uuid_;
   esp32_ble::ESPBTUUID notify_uuid_;
@@ -558,6 +562,9 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
         this->device_id_bytes_ = info.device_id_bytes;
         this->device_id_int_ = info.device_id_int;
         this->serial_ = info.serial;
+        if (this->serial_ts_ && !this->serial_.empty()) {
+          this->serial_ts_->publish_state(this->serial_);
+        }
         this->have_identifiers_ = true;
   
         ESP_LOGI(TAG, "CMD213 parsed: device_id=%llu serial=%s",
