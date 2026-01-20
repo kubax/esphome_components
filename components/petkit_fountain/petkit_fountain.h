@@ -219,7 +219,15 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
       this->auto_213_sent_ = true;
       ESP_LOGD(TAG, "Auto TX: CMD213 requested");
     }
-
+    if (this->schedule_cmd210_ && (int32_t)(millis() - this->cmd210_at_ms_) >= 0) {
+      this->schedule_cmd210_ = false;
+  
+      // CMD210: type=1, data=[0,0]
+      this->enqueue_cmd_(210, 1, {0x00, 0x00});
+  
+      this->cmd210_sent_after_213_ = true;
+      ESP_LOGD(TAG, "TX scheduled CMD210 fired");
+    }
   }
 
   void gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
@@ -401,6 +409,10 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
 
   text_sensor::TextSensor *serial_ts_{nullptr};
 
+  bool schedule_cmd210_{false};
+  bool cmd210_sent_after_213_{false};
+  uint32_t cmd210_at_ms_{0};
+
   // UUIDs
   esp32_ble::ESPBTUUID service_uuid_;
   esp32_ble::ESPBTUUID notify_uuid_;
@@ -570,6 +582,11 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
         ESP_LOGI(TAG, "CMD213 parsed: device_id=%llu serial=%s",
                  (unsigned long long) this->device_id_int_,
                  this->serial_.c_str());
+        // schedule CMD210 1.5s after identifiers
+        this->schedule_cmd210_ = true;
+        this->cmd210_at_ms_ = millis() + 1500;
+        this->cmd210_sent_after_213_ = false;
+        ESP_LOGD(TAG, "Scheduling CMD210 in 1500ms after CMD213");
       } else {
         ESP_LOGW(TAG, "CMD213 received but parse failed (len=%u)", (unsigned) len);
       }
