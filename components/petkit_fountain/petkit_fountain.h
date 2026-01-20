@@ -248,7 +248,7 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
         esp_err_t err = esp_ble_gattc_register_for_notify(gattc_if, parent->get_remote_bda(), notify_handle_);
         if (err != ESP_OK) ESP_LOGW(TAG, "register_for_notify failed: %d", (int) err);
 
-        cmd_refresh_();
+        // cmd_refresh_();
         break;
       }
 
