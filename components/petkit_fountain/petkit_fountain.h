@@ -239,7 +239,7 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
           payload.insert(payload.end(), device_id8_.begin(), device_id8_.end());
           payload.insert(payload.end(), secret_.begin(), secret_.end());
     
-          this->enqueue_cmd_(73, 1, payload);
+          this->enqueue_(73, 1, payload);
           ESP_LOGD(TAG, "Init chain: sent CMD73");
           this->init_stage_ = INIT_SEND_86;
           this->init_at_ms_ = millis() + 1500;
@@ -254,7 +254,7 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
           payload.push_back(0x00);
           payload.insert(payload.end(), secret_.begin(), secret_.end());
     
-          this->enqueue_cmd_(86, 1, payload);
+          this->enqueue_(86, 1, payload);
           ESP_LOGD(TAG, "Init chain: sent CMD86");
           this->init_stage_ = INIT_SEND_84;
           this->init_at_ms_ = millis() + 750;
@@ -265,7 +265,7 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
           // CMD84 payload: Utils.time_in_bytes() equivalent: [0, sec>>24, sec>>16, sec>>8, sec, 13]
           // Reference time: 2000-01-01 UTC. If you already implemented time bytes, call that.
           auto t = this->build_time_bytes_();  // <-- implement or reuse existing
-          this->enqueue_cmd_(84, 1, t);
+          this->enqueue_(84, 1, t);
           ESP_LOGD(TAG, "Init chain: sent CMD84");
           this->init_stage_ = INIT_SEND_210;
           this->init_at_ms_ = millis() + 750;
@@ -273,7 +273,7 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
         }
     
         case INIT_SEND_210: {
-          this->enqueue_cmd_(210, 1, {0x00, 0x00});
+          this->enqueue_(210, 1, {0x00, 0x00});
           ESP_LOGD(TAG, "Init chain: sent CMD210");
           this->init_stage_ = INIT_NONE;
           break;
@@ -515,6 +515,37 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   static uint32_t u32_be_(const uint8_t *p) {
     return (uint32_t(p[0]) << 24) | (uint32_t(p[1]) << 16) | (uint32_t(p[2]) << 8) | uint32_t(p[3]);
   }
+
+  std::vector<uint8_t> build_time_bytes_() {
+    // Build payload like Python Utils.time_in_bytes():
+    // [0, sec>>24, sec>>16, sec>>8, sec, 13]
+    // sec = seconds since 2000-01-01 00:00:00 UTC
+  
+    std::vector<uint8_t> out;
+    out.reserve(6);
+  
+    // If system time isn't set, we still return something deterministic to avoid empty writes.
+    // You can also skip CMD84 if time is invalid.
+    time_t now_unix = time(nullptr);
+  
+    // 2000-01-01 00:00:00 UTC in Unix epoch seconds
+    const int64_t unix_to_2000 = 946684800LL;
+  
+    int64_t sec2000 = (int64_t) now_unix - unix_to_2000;
+    if (sec2000 < 0) sec2000 = 0;  // clamp if clock not set
+  
+    uint32_t s = (uint32_t) sec2000;
+  
+    out.push_back(0x00);
+    out.push_back((s >> 24) & 0xFF);
+    out.push_back((s >> 16) & 0xFF);
+    out.push_back((s >> 8) & 0xFF);
+    out.push_back((s) & 0xFF);
+    out.push_back(0x0D);  // 13
+  
+    return out;
+  }
+
 
   void compute_secret_from_device_id_() {
     // device_id_bytes_ is 6 bytes (may be all 0)
