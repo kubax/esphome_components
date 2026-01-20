@@ -18,6 +18,8 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <array>
+#include <algorithm>
 #include <esp_gattc_api.h>
 
 namespace esphome {
@@ -209,22 +211,12 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   void set_dnd_switch_sensor(sensor::Sensor *s) { dnd_switch_ = s; }
   void set_dnd_start_min_sensor(sensor::Sensor *s) { dnd_start_min_ = s; }
   void set_dnd_end_min_sensor(sensor::Sensor *s) { dnd_end_min_ = s; }
-  void set_serial_text_sensor(text_sensor::TextSensor *s) { serial_ts_ = s; }
 
-  // switch setters
-  void set_power_switch(switch_::Switch *s) { power_sw_ = s; }
-  void set_light_switch(switch_::Switch *s) { light_sw_ = s; }
-  void set_dnd_switch(switch_::Switch *s) { dnd_sw_ = s; }
-  
   // number setters
-  void set_brightness_number(number::Number *n) { brightness_num_ = n; }
   void set_light_start_number(number::Number *n) { light_start_num_ = n; }
   void set_light_end_number(number::Number *n) { light_end_num_ = n; }
   void set_dnd_start_number(number::Number *n) { dnd_start_num_ = n; }
   void set_dnd_end_number(number::Number *n) { dnd_end_num_ = n; }
-  
-  // select setter
-  void set_mode_select(select::Select *s) { mode_sel_ = s; }
   
   // text sensor setter
   void set_serial_text_sensor(text_sensor::TextSensor *t) { serial_text_ = t; }
@@ -503,8 +495,6 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   std::string serial_;
   bool have_identifiers_{false};
 
-  text_sensor::TextSensor *serial_ts_{nullptr};
-
   bool schedule_cmd210_{false};
   bool cmd210_sent_after_213_{false};
   uint32_t cmd210_at_ms_{0};
@@ -572,12 +562,7 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   text_sensor::TextSensor *serial_text_{nullptr};
 
   // entities
-  PetkitLightSwitch *light_sw_{nullptr};
-  PetkitDndSwitch *dnd_sw_{nullptr};
-  PetkitPowerSwitch *power_sw_{nullptr};
-  PetkitBrightnessNumber *brightness_num_{nullptr};
   std::vector<PetkitTimeNumber *> time_nums_{};
-  PetkitModeSelect *mode_sel_{nullptr};
   std::vector<PetkitActionButton *> buttons_{};
 
   // state cache
@@ -861,8 +846,8 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
         this->device_id_bytes_ = info.device_id_bytes;
         this->device_id_int_ = info.device_id_int;
         this->serial_ = info.serial;
-        if (this->serial_ts_ && !this->serial_.empty()) {
-          this->serial_ts_->publish_state(this->serial_);
+        if (this->serial_text_ && !this->serial_.empty()) {
+          this->serial_text_->publish_state(this->serial_);
         }
         this->have_identifiers_ = true;
   
