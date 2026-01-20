@@ -308,13 +308,13 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
         case INIT_SEND_210: {
           this->enqueue_(210, 1, {0x00, 0x00});
           ESP_LOGD(TAG, "Init chain: sent CMD210");
-          this->init_stage_ = INIT_SEND_221;
+          this->init_stage_ = INIT_SEND_211;
           break;
         }
     
-        case INIT_SEND_221: {
-          this->enqueue_(221, 1, {0x00, 0x00});
-          ESP_LOGD(TAG, "Init chain: sent CMD221");
+        case INIT_SEND_211: {
+          this->enqueue_(211, 1, {0x00, 0x00});
+          ESP_LOGD(TAG, "Init chain: sent CMD211");
           this->init_stage_ = INIT_NONE;
           break;
         }
