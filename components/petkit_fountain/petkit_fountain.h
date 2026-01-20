@@ -516,6 +516,58 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
     return (uint32_t(p[0]) << 24) | (uint32_t(p[1]) << 16) | (uint32_t(p[2]) << 8) | uint32_t(p[3]);
   }
 
+  struct PetkitStateD2 {
+    bool ok{false};
+    uint8_t seq{0};
+  
+    uint8_t power{0};
+    uint8_t mode{0};
+    uint8_t night_dnd{0};
+    uint8_t breakdown_warn{0};
+    uint8_t lack_warn{0};
+    uint8_t filter_warn{0};
+  
+    uint8_t filter_percent{0};
+    uint8_t run_status{0};
+  };
+  
+  static PetkitStateD2 petkit_parse_state_d2_(const uint8_t *frame, size_t len) {
+    PetkitStateD2 out;
+    if (len < 9) return out;
+    if (frame[0] != 0xFA || frame[1] != 0xFC || frame[2] != 0xFD) return out;
+    if (frame[len - 1] != 0xFB) return out;
+  
+    const uint8_t cmd = frame[3];
+    const uint8_t type = frame[4];
+    const uint8_t seq = frame[5];
+    const uint8_t dlen = frame[6];
+  
+    if (cmd != 0xD2) return out;
+    if (type != 0x02) return out;
+    if (len != (size_t)(9 + dlen)) return out;
+  
+    const uint8_t *d = frame + 8;
+    const size_t dl = dlen;
+  
+    // Need at least up to filter_percent/run_status indices we use
+    if (dl < 12) return out;
+  
+    out.seq = seq;
+    out.power = d[0];
+    out.mode = d[1];
+    out.night_dnd = d[2];
+    out.breakdown_warn = d[3];
+    out.lack_warn = d[4];
+    out.filter_warn = d[5];
+  
+    // These offsets match your observed payload (0x64 at position 10)
+    out.filter_percent = d[10];
+    out.run_status = d[11];
+  
+    out.ok = true;
+    return out;
+  }
+
   struct PetkitAck {
     bool ok{false};
     uint8_t cmd{0};
@@ -798,6 +850,33 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
       }
       return;
     }
+
+    if (cmd == 0xD2) {  // response to CMD210
+      auto st = petkit_parse_state_d2_(data, len);
+      if (st.ok) {
+        ESP_LOGI(TAG, "CMD210->D2: power=%u mode=%u dnd=%u warn(break=%u lack=%u filter=%u) filter=%u run=%u",
+                 st.power, st.mode, st.night_dnd, st.breakdown_warn, st.lack_warn, st.filter_warn,
+                 st.filter_percent, st.run_status);
+    
+        // publish to sensors if you have them
+        if (power_) power_->publish_state(st.power);
+        if (mode_) mode_->publish_state(st.mode);
+        if (power_sw_) power_sw_->publish_state(st.power != 0);
+        if (mode_sel_) mode_sel_->publish_state((st.mode == 2) ? "smart" : "normal");
+    
+        if (is_night_dnd_) is_night_dnd_->publish_state(st.night_dnd);
+        if (breakdown_warning_) breakdown_warning_->publish_state(st.breakdown_warn);
+        if (lack_warning_) lack_warning_->publish_state(st.lack_warn);
+        if (filter_warning_) filter_warning_->publish_state(st.filter_warn);
+    
+        if (filter_percent_) filter_percent_->publish_state(st.filter_percent);
+        if (run_status_) run_status_->publish_state(st.run_status);
+      } else {
+        ESP_LOGW(TAG, "CMD0xD2 parse failed (len=%u)", (unsigned) len);
+      }
+      return;
+    }
+
   
     // optional: log unknown cmds
     ESP_LOGD(TAG, "Unhandled cmd=0x%02X len=%u", cmd, (unsigned) len);
