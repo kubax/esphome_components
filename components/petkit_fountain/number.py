@@ -69,6 +69,7 @@ async def to_code(config):
         cfg = config[CONF_LIGHT_BRIGHTNESS]
         n = await _new_num(cfg)
         cg.add(n.set_parent(parent))
+        cg.add(parent.set_brightness_number(n))
 
     # Time kinds: 0=LIGHT_START, 1=LIGHT_END, 2=DND_START, 3=DND_END
     if CONF_LIGHT_SCHEDULE_START_MIN in config:
@@ -76,21 +77,25 @@ async def to_code(config):
         n = await _new_num(cfg)
         cg.add(n.set_parent(parent))
         cg.add(n.set_kind(0))
+        cg.add(parent.set_time_number(n))
 
     if CONF_LIGHT_SCHEDULE_END_MIN in config:
         cfg = config[CONF_LIGHT_SCHEDULE_END_MIN]
         n = await _new_num(cfg)
         cg.add(n.set_parent(parent))
         cg.add(n.set_kind(1))
+        cg.add(parent.set_time_number(n))
 
     if CONF_DND_START_MIN in config:
         cfg = config[CONF_DND_START_MIN]
         n = await _new_num(cfg)
         cg.add(n.set_parent(parent))
         cg.add(n.set_kind(2))
+        cg.add(parent.set_time_number(n))
 
     if CONF_DND_END_MIN in config:
         cfg = config[CONF_DND_END_MIN]
         n = await _new_num(cfg)
         cg.add(n.set_parent(parent))
         cg.add(n.set_kind(3))
+        cg.add(parent.set_time_number(n))
