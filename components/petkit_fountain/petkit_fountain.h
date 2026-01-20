@@ -183,10 +183,32 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
         notify_uuid_(esp32_ble::ESPBTUUID::from_raw(notify_uuid)),
         write_uuid_(esp32_ble::ESPBTUUID::from_raw(write_uuid)) {}
 
-  // sensor setters (keep your existing ones; minimal subset shown)
+  // sensor setters
   void set_power_sensor(sensor::Sensor *s) { power_ = s; }
   void set_mode_sensor(sensor::Sensor *s) { mode_ = s; }
+  void set_is_night_dnd_sensor(sensor::Sensor *s) { is_night_dnd_ = s; }
+  void set_breakdown_warning_sensor(sensor::Sensor *s) { breakdown_warning_ = s; }
+  void set_lack_warning_sensor(sensor::Sensor *s) { lack_warning_ = s; }
+  void set_filter_warning_sensor(sensor::Sensor *s) { filter_warning_ = s; }
   void set_filter_percent_sensor(sensor::Sensor *s) { filter_percent_ = s; }
+  void set_run_status_sensor(sensor::Sensor *s) { run_status_ = s; }
+  
+  void set_water_pump_runtime_seconds_sensor(sensor::Sensor *s) { water_pump_runtime_seconds_ = s; }
+  void set_today_pump_runtime_seconds_sensor(sensor::Sensor *s) { today_pump_runtime_seconds_ = s; }
+  void set_today_purified_water_times_sensor(sensor::Sensor *s) { today_purified_water_times_ = s; }
+  void set_today_energy_kwh_sensor(sensor::Sensor *s) { today_energy_kwh_ = s; }
+  
+  void set_smart_working_time_sensor(sensor::Sensor *s) { smart_working_time_ = s; }
+  void set_smart_sleep_time_sensor(sensor::Sensor *s) { smart_sleep_time_ = s; }
+  
+  void set_light_switch_sensor(sensor::Sensor *s) { light_switch_ = s; }
+  void set_light_brightness_sensor(sensor::Sensor *s) { light_brightness_ = s; }
+  void set_light_schedule_start_min_sensor(sensor::Sensor *s) { light_schedule_start_min_ = s; }
+  void set_light_schedule_end_min_sensor(sensor::Sensor *s) { light_schedule_end_min_ = s; }
+  
+  void set_dnd_switch_sensor(sensor::Sensor *s) { dnd_switch_ = s; }
+  void set_dnd_start_min_sensor(sensor::Sensor *s) { dnd_start_min_ = s; }
+  void set_dnd_end_min_sensor(sensor::Sensor *s) { dnd_end_min_ = s; }
   void set_serial_text_sensor(text_sensor::TextSensor *s) { serial_ts_ = s; }
 
   // entity attachers
@@ -486,10 +508,29 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   uint16_t notify_handle_{0};
   uint16_t write_handle_{0};
 
-  // sensors (minimal example; extend as you like)
+  // sensors
   sensor::Sensor *power_{nullptr};
   sensor::Sensor *mode_{nullptr};
+  sensor::Sensor *is_night_dnd_{nullptr};
+  sensor::Sensor *breakdown_warning_{nullptr};
+  sensor::Sensor *lack_warning_{nullptr};
+  sensor::Sensor *filter_warning_{nullptr};
   sensor::Sensor *filter_percent_{nullptr};
+  sensor::Sensor *run_status_{nullptr};
+  sensor::Sensor *water_pump_runtime_seconds_{nullptr};
+  sensor::Sensor *today_pump_runtime_seconds_{nullptr};
+  sensor::Sensor *today_purified_water_times_{nullptr};
+  sensor::Sensor *today_energy_kwh_{nullptr};
+  sensor::Sensor *smart_working_time_{nullptr};
+  sensor::Sensor *smart_sleep_time_{nullptr};
+  sensor::Sensor *light_switch_{nullptr};
+  sensor::Sensor *light_brightness_{nullptr};
+  sensor::Sensor *light_schedule_start_min_{nullptr};
+  sensor::Sensor *light_schedule_end_min_{nullptr};
+  sensor::Sensor *dnd_switch_{nullptr};
+  sensor::Sensor *dnd_start_min_{nullptr};
+  sensor::Sensor *dnd_end_min_{nullptr};
+
 
   // entities
   PetkitLightSwitch *light_sw_{nullptr};
