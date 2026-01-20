@@ -140,6 +140,7 @@ class PetkitTimeNumber : public PetkitBaseNumber {
   enum Kind { LIGHT_START, LIGHT_END, DND_START, DND_END };
   void set_kind(Kind k) { kind_ = k; }
   void set_kind(int k) { kind_ = (Kind) k; }
+  Kind get_kind() const { return kind_; }
 
  protected:
   void control(float value) override;
@@ -633,6 +634,64 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
     return out;
   }
 
+  struct PetkitConfigD3 {
+    bool ok{false};
+    uint8_t seq{0};
+  
+    uint8_t smart_on{0};
+    uint8_t smart_off{0};
+  
+    uint8_t light_sw{0};
+    uint8_t brightness{0};
+    uint16_t light_start{0};
+    uint16_t light_end{0};
+  
+    uint8_t dnd_sw{0};
+    uint16_t dnd_start{0};
+    uint16_t dnd_end{0};
+  };
+  
+  static PetkitConfigD3 petkit_parse_config_d3_(const uint8_t *frame, size_t len) {
+    PetkitConfigD3 out;
+    if (len < 9) return out;
+    if (frame[0] != 0xFA || frame[1] != 0xFC || frame[2] != 0xFD) return out;
+    if (frame[len - 1] != 0xFB) return out;
+  
+    const uint8_t cmd = frame[3];
+    const uint8_t type = frame[4];
+    const uint8_t seq  = frame[5];
+    const uint8_t dlen = frame[6];
+  
+    if (cmd != 0xD3) return out;
+    if (type != 0x02) return out;
+    if (len != (size_t)(9 + dlen)) return out;
+  
+    // Expected config payload length = 13 bytes
+    if (dlen != 13) return out;
+  
+    const uint8_t *d = frame + 8;
+  
+    out.seq = seq;
+  
+    // Layout (13 bytes):
+    // 0 smart_on, 1 smart_off, 2 light_sw, 3 brightness,
+    // 4..5 light_start, 6..7 light_end,
+    // 8 dnd_sw, 9..10 dnd_start, 11..12 dnd_end
+    out.smart_on    = d[0];
+    out.smart_off   = d[1];
+    out.light_sw    = d[2];
+    out.brightness  = d[3];
+    out.light_start = u16_be_(d + 4);
+    out.light_end   = u16_be_(d + 6);
+    out.dnd_sw      = d[8];
+    out.dnd_start   = u16_be_(d + 9);
+    out.dnd_end     = u16_be_(d + 11);
+  
+    out.ok = true;
+    return out;
+  }
+
+
   struct PetkitAck {
     bool ok{false};
     uint8_t cmd{0};
@@ -1029,6 +1088,66 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
       }
       return;
     }
+
+    if (cmd == 0xD3) {  // response to CMD211 (get_config)
+      auto cfg = petkit_parse_config_d3_(data, len);
+      if (!cfg.ok) {
+        ESP_LOGW(TAG, "CMD0xD3 parse failed (len=%u)", (unsigned) len);
+        return;
+      }
+    
+      // 1) baseline config setzen (damit CMD221 möglich wird)
+      last_config_payload_.assign({
+        cfg.smart_on,
+        cfg.smart_off,
+        cfg.light_sw,
+        cfg.brightness,
+        (uint8_t)((cfg.light_start >> 8) & 0xFF), (uint8_t)(cfg.light_start & 0xFF),
+        (uint8_t)((cfg.light_end   >> 8) & 0xFF), (uint8_t)(cfg.light_end   & 0xFF),
+        cfg.dnd_sw,
+        (uint8_t)((cfg.dnd_start  >> 8) & 0xFF), (uint8_t)(cfg.dnd_start  & 0xFF),
+        (uint8_t)((cfg.dnd_end    >> 8) & 0xFF), (uint8_t)(cfg.dnd_end    & 0xFF),
+      });
+    
+      ESP_LOGD(TAG,
+        "CMD211->D3 cfg: smart_on=%u smart_off=%u light=%u bright=%u ls=%u le=%u dnd=%u ds=%u de=%u",
+        cfg.smart_on, cfg.smart_off, cfg.light_sw, cfg.brightness,
+        cfg.light_start, cfg.light_end, cfg.dnd_sw, cfg.dnd_start, cfg.dnd_end
+      );
+    
+      // 2) Sensoren publishen (falls in YAML vorhanden)
+      if (smart_working_time_) smart_working_time_->publish_state(cfg.smart_on);
+      if (smart_sleep_time_)   smart_sleep_time_->publish_state(cfg.smart_off);
+    
+      if (light_switch_)               light_switch_->publish_state(cfg.light_sw);
+      if (light_brightness_)           light_brightness_->publish_state(cfg.brightness);
+      if (light_schedule_start_min_)   light_schedule_start_min_->publish_state(cfg.light_start);
+      if (light_schedule_end_min_)     light_schedule_end_min_->publish_state(cfg.light_end);
+    
+      if (dnd_switch_) dnd_switch_->publish_state(cfg.dnd_sw);
+      if (dnd_start_min_) dnd_start_min_->publish_state(cfg.dnd_start);
+      if (dnd_end_min_)   dnd_end_min_->publish_state(cfg.dnd_end);
+    
+      // 3) ESPHome Entities publishen (Switch/Number)
+      if (light_sw_) light_sw_->publish_state(cfg.light_sw != 0);
+      if (dnd_sw_)   dnd_sw_->publish_state(cfg.dnd_sw != 0);
+    
+      if (brightness_num_) brightness_num_->publish_state((float) cfg.brightness);
+    
+      // 4) Time Number Entities publishen (die 4 Kind-Varianten)
+      for (auto *tn : time_nums_) {
+        if (!tn) continue;
+        switch (tn->get_kind()) {
+          case PetkitTimeNumber::LIGHT_START: tn->publish_state((float) cfg.light_start); break;
+          case PetkitTimeNumber::LIGHT_END:   tn->publish_state((float) cfg.light_end); break;
+          case PetkitTimeNumber::DND_START:   tn->publish_state((float) cfg.dnd_start); break;
+          case PetkitTimeNumber::DND_END:     tn->publish_state((float) cfg.dnd_end); break;
+        }
+      }
+    
+      return;
+    }
+
 
   
     // optional: log unknown cmds
