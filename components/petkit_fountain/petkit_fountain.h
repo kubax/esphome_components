@@ -507,7 +507,7 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   bool cmd210_sent_after_213_{false};
   uint32_t cmd210_at_ms_{0};
 
-  enum InitStage : uint8_t { INIT_NONE, INIT_SEND_73, INIT_SEND_86, INIT_SEND_84, INIT_SEND_210, INIT_SEND_221 };
+  enum InitStage : uint8_t { INIT_NONE, INIT_SEND_73, INIT_SEND_86, INIT_SEND_84, INIT_SEND_210, INIT_SEND_211 };
   InitStage init_stage_{INIT_NONE};
   uint32_t init_at_ms_{0};
   
