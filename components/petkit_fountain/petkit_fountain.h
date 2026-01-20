@@ -169,11 +169,25 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
       }
 
       case ESP_GATTC_NOTIFY_EVT: {
-        if (param->notify.handle == notify_handle_) {
-          handle_frame_(param->notify.value, param->notify.value_len);
+        ESP_LOGD(TAG, "NOTIFY handle=0x%04x len=%u", param->notify.handle, param->notify.value_len);
+      
+        std::string hx;
+        hx.reserve(param->notify.value_len * 3);
+        static const char *d = "0123456789ABCDEF";
+        for (int i = 0; i < param->notify.value_len; i++) {
+          uint8_t b = param->notify.value[i];
+          hx.push_back(d[(b >> 4) & 0xF]);
+          hx.push_back(d[b & 0xF]);
+          if (i + 1 < param->notify.value_len) hx.push_back(' ');
         }
+        ESP_LOGD(TAG, "RX raw: %s", hx.c_str());
+      
+        // dann erst dein handle_frame_() aufrufen
+        handle_frame_(param->notify.value, param->notify.value_len);
         break;
       }
+
+                                
 
       case ESP_GATTC_DISCONNECT_EVT:
       case ESP_GATTC_CLOSE_EVT:
