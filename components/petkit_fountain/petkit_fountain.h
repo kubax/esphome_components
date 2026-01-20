@@ -516,6 +516,36 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
     return (uint32_t(p[0]) << 24) | (uint32_t(p[1]) << 16) | (uint32_t(p[2]) << 8) | uint32_t(p[3]);
   }
 
+  struct PetkitAck {
+    bool ok{false};
+    uint8_t cmd{0};
+    uint8_t seq{0};
+    uint8_t value{0};  // usually 1 = ok
+  };
+  
+  static PetkitAck petkit_parse_ack_(const uint8_t *frame, size_t len, uint8_t expected_cmd) {
+    PetkitAck out;
+    if (len < 9) return out;
+    if (frame[0] != 0xFA || frame[1] != 0xFC || frame[2] != 0xFD) return out;
+    if (frame[len - 1] != 0xFB) return out;
+  
+    const uint8_t cmd = frame[3];
+    const uint8_t type = frame[4];
+    const uint8_t seq = frame[5];
+    const uint8_t dlen = frame[6];
+  
+    if (cmd != expected_cmd) return out;
+    if (type != 0x02) return out;
+    if (len != (size_t)(9 + dlen)) return out;
+    if (dlen < 1) return out;
+  
+    out.ok = true;
+    out.cmd = cmd;
+    out.seq = seq;
+    out.value = frame[8];  // first data byte
+    return out;
+  }
+
   std::vector<uint8_t> build_time_bytes_() {
     // Build payload like Python Utils.time_in_bytes():
     // [0, sec>>24, sec>>16, sec>>8, sec, 13]
@@ -755,6 +785,16 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
         uint16_t ds = u16_be_(&data[33]);
         uint16_t de = u16_be_(&data[35]);
         (void) ls; (void) le; (void) ds; (void) de;
+      }
+      return;
+    }
+
+    if (cmd == 0x54) {  // ACK for CMD84
+      auto ack = petkit_parse_ack_(data, len, 0x54);
+      if (ack.ok) {
+        ESP_LOGI(TAG, "CMD84 ACK: seq=%u status=%u", ack.seq, ack.value);
+      } else {
+        ESP_LOGW(TAG, "CMD84 ACK parse failed (len=%u)", (unsigned) len);
       }
       return;
     }
