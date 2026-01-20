@@ -213,7 +213,7 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
     // Auto-init: send CMD213 once after notify is ready
     if (this->notify_ready_ && !this->auto_213_sent_ && millis() > this->auto_213_at_ms_) {
       // enqueue cmd=213 type=1 seq=... data=[0,0]
-      this->enqueue_cmd_(213, 1, {0x00, 0x00});
+      this->enqueue_(213, 1, {0x00, 0x00});
       this->auto_213_sent_ = true;
       ESP_LOGD(TAG, "Auto TX: CMD213 requested");
     }
