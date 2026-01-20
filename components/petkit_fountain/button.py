@@ -33,24 +33,29 @@ async def to_code(config):
     if CONF_REFRESH_STATE in config:
         b = await button.new_button(config[CONF_REFRESH_STATE])
         cg.add(b.set_parent(parent))
+        cg.add(parent.set_action_button(b))
         cg.add(b.set_action(0))
 
     if CONF_RESET_FILTER in config:
         b = await button.new_button(config[CONF_RESET_FILTER])
         cg.add(b.set_parent(parent))
+        cg.add(parent.set_action_button(b))
         cg.add(b.set_action(1))
 
     if CONF_SET_DATETIME in config:
         b = await button.new_button(config[CONF_SET_DATETIME])
         cg.add(b.set_parent(parent))
+        cg.add(parent.set_action_button(b))
         cg.add(b.set_action(2))
 
     if CONF_INIT_SESSION in config:
         b = await button.new_button(config[CONF_INIT_SESSION])
         cg.add(b.set_parent(parent))
+        cg.add(parent.set_action_button(b))
         cg.add(b.set_action(3))
 
     if CONF_SYNC in config:
         b = await button.new_button(config[CONF_SYNC])
         cg.add(b.set_parent(parent))
+        cg.add(parent.set_action_button(b))
         cg.add(b.set_action(4))
