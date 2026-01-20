@@ -970,11 +970,8 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
           have_time_ = (ack.value == 1);
         } else if (ack.cmd == 0xDC) {
           ESP_LOGI(TAG, "CMD220 ACK: seq=%u status=%u", ack.seq, ack.value);
-          // optional: track last control success
-          last_cmd220_ok_ = (ack.value == 1);
         } else if (ack.cmd == 0xDD) {
           ESP_LOGI(TAG, "CMD221 ACK: seq=%u status=%u", ack.seq, ack.value);
-          last_cmd221_ok_ = (ack.value == 1);
         }
       } else {
         ESP_LOGW(TAG, "ACK parse failed cmd=0x%02X len=%u", cmd, (unsigned) len);
