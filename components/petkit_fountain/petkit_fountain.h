@@ -969,6 +969,13 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
 
     enqueue_(221, 1, cfg);
     ESP_LOGI(TAG, "Queued CMD221 (%s)", reason);
+    last_config_payload_ = cfg;
+
+    last_smart_on_min_  = cfg[0];
+    last_smart_off_min_ = cfg[1];
+    
+    publish_filter_remaining_days_();
+    cmd_get_config_();
   }
 
   void handle_frame_(const uint8_t *data, size_t len) {
