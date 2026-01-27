@@ -4,7 +4,6 @@ from esphome.components import binary_sensor
 from esphome.const import CONF_ID
 
 CONF_PARENT_ID = "parent_id"
-
 CONF_LACK_WARNING = "lack_warning"
 CONF_BREAKDOWN_WARNING = "breakdown_warning"
 CONF_FILTER_WARNING = "filter_warning"
@@ -31,13 +30,12 @@ async def to_code(config):
 
     if CONF_LACK_WARNING in config:
         bs = await binary_sensor.new_binary_sensor(config[CONF_LACK_WARNING])
-        cg.add(parent.set_lack_warning_binary(bs))
+        cg.add(parent.set_lack_warning_binary_sensor(bs))
 
     if CONF_BREAKDOWN_WARNING in config:
         bs = await binary_sensor.new_binary_sensor(config[CONF_BREAKDOWN_WARNING])
-        cg.add(parent.set_breakdown_warning_binary(bs))
+        cg.add(parent.set_breakdown_warning_binary_sensor(bs))
 
     if CONF_FILTER_WARNING in config:
         bs = await binary_sensor.new_binary_sensor(config[CONF_FILTER_WARNING])
-        cg.add(parent.set_filter_warning_binary(bs))
-
+        cg.add(parent.set_filter_warning_binary_sensor(bs))

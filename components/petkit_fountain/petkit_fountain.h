@@ -588,6 +588,9 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
 
   // binary_sensors
   binary_sensor::BinarySensor *lack_warning_bin_{nullptr};
+  binary_sensor::BinarySensor *breakdown_warning_bin_{nullptr};
+  binary_sensor::BinarySensor *filter_warning_bin_{nullptr};
+
 
 
   // switches (aus switch.py)
@@ -1184,9 +1187,9 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
         if (mode_sel_) mode_sel_->publish_state((st.mode == 2) ? "smart" : "normal");
     
         if (is_night_dnd_) is_night_dnd_->publish_state(st.night_dnd);
-        if (lack_warning_bin_) lack_warning_bin_->publish_state(lack_warn != 0);
-        if (breakdown_warning_bin_) breakdown_warning_bin_->publish_state(breakdown_warn != 0);
-        if (filter_warning_bin_) filter_warning_bin_->publish_state(filter_warn != 0);
+        if (lack_warning_bin_) lack_warning_bin_->publish_state(st.lack_warn != 0);
+        if (breakdown_warning_bin_) breakdown_warning_bin_->publish_state(st.breakdown_warn != 0);
+        if (filter_warning_bin_) filter_warning_bin_->publish_state(st.filter_warn != 0);
 
     
         if (filter_percent_) filter_percent_->publish_state(st.filter_percent);
