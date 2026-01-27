@@ -212,6 +212,7 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   void set_dnd_switch_sensor(sensor::Sensor *s) { dnd_switch_ = s; }
   void set_dnd_start_min_sensor(sensor::Sensor *s) { dnd_start_min_ = s; }
   void set_dnd_end_min_sensor(sensor::Sensor *s) { dnd_end_min_ = s; }
+  void set_filter_remaining_days_sensor(sensor::Sensor *s) { filter_remaining_days_ = s; }
 
   // number setters
   void set_light_start_number(number::Number *n) { light_start_num_ = n; }
@@ -550,6 +551,7 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   sensor::Sensor *dnd_switch_{nullptr};
   sensor::Sensor *dnd_start_min_{nullptr};
   sensor::Sensor *dnd_end_min_{nullptr};
+  sensor::Sensor *filter_remaining_days_{nullptr};
 
   // switches (aus switch.py)
   switch_::Switch *power_sw_{nullptr};
@@ -577,6 +579,10 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   uint8_t last_power_{0};
   uint8_t last_mode_{1};
   std::vector<uint8_t> last_config_payload_;  // 13 bytes baseline for CMD221
+  uint8_t last_filter_percent_raw_{0};  // 0..100
+  uint16_t last_smart_on_min_{0};        // 0..1439 (min)
+  uint16_t last_smart_off_min_{0};       // 0..1439 (min)
+
 
   // tx queue
   struct PendingCmd { uint8_t cmd; uint8_t type; std::vector<uint8_t> data; };
@@ -813,6 +819,40 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
     txq_.push_back(PendingCmd{cmd, type, std::move(data)});
   }
 
+  void publish_filter_remaining_days_() {
+    if (!filter_remaining_days_) return;
+  
+    // clamp percent 0..100
+    uint8_t fp = last_filter_percent_raw_;
+    if (fp > 100) fp = 100;
+  
+    const float p = float(fp) / 100.0f;
+    float days = 0.0f;
+  
+    // Base lifespan: 30 days
+    if (last_mode_ == 2) {
+      // Smart mode: on/off in minutes (0..1439)
+      const float on  = float(last_smart_on_min_);
+      const float off = float(last_smart_off_min_);
+  
+      if (on <= 0.0f) {
+        // fallback: behave like normal mode
+        days = std::ceil(p * 30.0f);
+      } else {
+        days = std::ceil(((p * 30.0f) * (on + off)) / on);
+      }
+    } else {
+      // Normal mode
+      days = std::ceil(p * 30.0f);
+    }
+  
+    // Safety against NaN/Inf
+    if (!std::isfinite(days) || days < 0.0f) days = 0.0f;
+  
+    filter_remaining_days_->publish_state(days);
+  }
+
+
   void process_tx_queue_() {
     if (txq_.empty()) return;
     auto *parent = this->parent();
@@ -987,6 +1027,11 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
     
       const uint32_t today_runtime =
           ((uint32_t)data[20] << 24) | ((uint32_t)data[21] << 16) | ((uint32_t)data[22] << 8) | (uint32_t)data[23];
+
+      last_mode_ = mode;
+      last_filter_percent_raw_ = filter_percent;
+      publish_filter_remaining_days_();
+
     
       // --- publish base state ---
       if (power_) power_->publish_state(power);
@@ -1021,6 +1066,10 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
       const uint8_t dnd_sw = data[32];
       const uint16_t dnd_start = ((uint16_t)data[33] << 8) | data[34];
       const uint16_t dnd_end   = ((uint16_t)data[35] << 8) | data[36];
+
+      last_smart_on_min_  = smart_on;
+      last_smart_off_min_ = smart_off;
+
     
       if (smart_working_time_) smart_working_time_->publish_state(smart_on);
       if (smart_sleep_time_) smart_sleep_time_->publish_state(smart_off);

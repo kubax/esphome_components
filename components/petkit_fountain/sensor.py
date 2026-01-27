@@ -30,6 +30,7 @@ CONF_LIGHT_SCHEDULE_END_MIN = "light_schedule_end_min"
 CONF_DND_SWITCH = "dnd_switch"
 CONF_DND_START_MIN = "dnd_start_min"
 CONF_DND_END_MIN = "dnd_end_min"
+CONF_FILTER_REMAINING_DAYS = "filter_remaining_days"
 
 petkit_ns = cg.esphome_ns.namespace("petkit_fountain")
 PetkitFountain = petkit_ns.class_("PetkitFountain", cg.PollingComponent, ble_client.BLEClientNode)
@@ -68,6 +69,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_DND_SWITCH): _opt_sensor(),
         cv.Optional(CONF_DND_START_MIN): _opt_sensor(),
         cv.Optional(CONF_DND_END_MIN): _opt_sensor(),
+        cv.Optional(CONF_FILTER_REMAINING_DAYS): _opt_sensor(),
     }
 ).extend(cv.polling_component_schema("60s"))
 
@@ -165,3 +167,8 @@ async def to_code(config):
     if CONF_DND_END_MIN in config:
         s = await sensor.new_sensor(config[CONF_DND_END_MIN])
         cg.add(var.set_dnd_end_min_sensor(s))
+
+    if CONF_FILTER_REMAINING_DAYS in config:
+        s = await sensor.new_sensor(config[CONF_FILTER_REMAINING_DAYS])
+        cg.add(var.set_filter_remaining_days_sensor(s))
+
