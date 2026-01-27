@@ -8,6 +8,7 @@
 #include "esphome/components/select/select.h"
 #include "esphome/components/button/button.h"
 #include "esphome/components/text_sensor/text_sensor.h"
+#include "esphome/components/binary_sensor/binary_sensor.h"
 
 #include <deque>
 #include <vector>
@@ -200,9 +201,6 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   void set_power_sensor(sensor::Sensor *s) { power_ = s; }
   void set_mode_sensor(sensor::Sensor *s) { mode_ = s; }
   void set_is_night_dnd_sensor(sensor::Sensor *s) { is_night_dnd_ = s; }
-  void set_breakdown_warning_sensor(sensor::Sensor *s) { breakdown_warning_ = s; }
-  void set_lack_warning_sensor(sensor::Sensor *s) { lack_warning_ = s; }
-  void set_filter_warning_sensor(sensor::Sensor *s) { filter_warning_ = s; }
   void set_filter_percent_sensor(sensor::Sensor *s) { filter_percent_ = s; }
   void set_run_status_sensor(sensor::Sensor *s) { run_status_ = s; }
   
@@ -223,6 +221,12 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   void set_dnd_start_min_sensor(sensor::Sensor *s) { dnd_start_min_ = s; }
   void set_dnd_end_min_sensor(sensor::Sensor *s) { dnd_end_min_ = s; }
   void set_filter_remaining_days_sensor(sensor::Sensor *s) { filter_remaining_days_ = s; }
+
+  // binary sensor setters
+  void set_lack_warning_binary_sensor(binary_sensor::BinarySensor *s) { lack_warning_bin_ = s; }
+  void set_breakdown_warning_binary_sensor(binary_sensor::BinarySensor *s) { breakdown_warning_bin_ = s; }
+  void set_filter_warning_binary_sensor(binary_sensor::BinarySensor *s) { filter_warning_bin_ = s; }
+
 
   // number setters
   void set_light_start_number(number::Number *n) { light_start_num_ = n; }
@@ -565,9 +569,6 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   sensor::Sensor *power_{nullptr};
   sensor::Sensor *mode_{nullptr};
   sensor::Sensor *is_night_dnd_{nullptr};
-  sensor::Sensor *breakdown_warning_{nullptr};
-  sensor::Sensor *lack_warning_{nullptr};
-  sensor::Sensor *filter_warning_{nullptr};
   sensor::Sensor *filter_percent_{nullptr};
   sensor::Sensor *run_status_{nullptr};
   sensor::Sensor *water_pump_runtime_seconds_{nullptr};
@@ -584,6 +585,10 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   sensor::Sensor *dnd_start_min_{nullptr};
   sensor::Sensor *dnd_end_min_{nullptr};
   sensor::Sensor *filter_remaining_days_{nullptr};
+
+  // binary_sensors
+  binary_sensor::BinarySensor *lack_warning_bin_{nullptr};
+
 
   // switches (aus switch.py)
   switch_::Switch *power_sw_{nullptr};
@@ -1084,9 +1089,10 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
     
       // --- publish warnings / flags (if you have the sensors) ---
       if (is_night_dnd_) is_night_dnd_->publish_state(night_dnd);
-      if (breakdown_warning_) breakdown_warning_->publish_state(breakdown_warn);
-      if (lack_warning_) lack_warning_->publish_state(lack_warn);
-      if (filter_warning_) filter_warning_->publish_state(filter_warn);
+      if (lack_warning_bin_) lack_warning_bin_->publish_state(lack_warn != 0);
+      if (breakdown_warning_bin_) breakdown_warning_bin_->publish_state(breakdown_warn != 0);
+      if (filter_warning_bin_) filter_warning_bin_->publish_state(filter_warn != 0);
+
     
       if (run_status_) run_status_->publish_state(run_status);
     
@@ -1178,9 +1184,10 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
         if (mode_sel_) mode_sel_->publish_state((st.mode == 2) ? "smart" : "normal");
     
         if (is_night_dnd_) is_night_dnd_->publish_state(st.night_dnd);
-        if (breakdown_warning_) breakdown_warning_->publish_state(st.breakdown_warn);
-        if (lack_warning_) lack_warning_->publish_state(st.lack_warn);
-        if (filter_warning_) filter_warning_->publish_state(st.filter_warn);
+        if (lack_warning_bin_) lack_warning_bin_->publish_state(lack_warn != 0);
+        if (breakdown_warning_bin_) breakdown_warning_bin_->publish_state(breakdown_warn != 0);
+        if (filter_warning_bin_) filter_warning_bin_->publish_state(filter_warn != 0);
+
     
         if (filter_percent_) filter_percent_->publish_state(st.filter_percent);
         if (run_status_) run_status_->publish_state(st.run_status);

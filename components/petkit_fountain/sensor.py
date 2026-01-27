@@ -12,9 +12,6 @@ CONF_WRITE_UUID = "write_uuid"
 CONF_POWER = "power"
 CONF_MODE = "mode"
 CONF_IS_NIGHT_DND = "is_night_dnd"
-CONF_BREAKDOWN_WARNING = "breakdown_warning"
-CONF_LACK_WARNING = "lack_warning"
-CONF_FILTER_WARNING = "filter_warning"
 CONF_FILTER_PERCENT = "filter_percent"
 CONF_RUN_STATUS = "run_status"
 CONF_WATER_PUMP_RUNTIME_SECONDS = "water_pump_runtime_seconds"
@@ -95,18 +92,6 @@ async def to_code(config):
     if CONF_IS_NIGHT_DND in config:
         s = await sensor.new_sensor(config[CONF_IS_NIGHT_DND])
         cg.add(var.set_is_night_dnd_sensor(s))
-
-    if CONF_BREAKDOWN_WARNING in config:
-        s = await sensor.new_sensor(config[CONF_BREAKDOWN_WARNING])
-        cg.add(var.set_breakdown_warning_sensor(s))
-
-    if CONF_LACK_WARNING in config:
-        s = await sensor.new_sensor(config[CONF_LACK_WARNING])
-        cg.add(var.set_lack_warning_sensor(s))
-
-    if CONF_FILTER_WARNING in config:
-        s = await sensor.new_sensor(config[CONF_FILTER_WARNING])
-        cg.add(var.set_filter_warning_sensor(s))
 
     if CONF_FILTER_PERCENT in config:
         s = await sensor.new_sensor(config[CONF_FILTER_PERCENT])
