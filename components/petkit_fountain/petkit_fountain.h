@@ -926,7 +926,7 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
           // cmd_get_battery_();
   }
 
-  void cmd_set_mode_(bool on, uint8_t mode) { enqueue_(220, 1, {(uint8_t) (on ? 1 : 0), mode}); }
+  void cmd_set_mode_(bool on, uint8_t mode) { enqueue_(220, 1, {(uint8_t) (on ? 1 : 0), mode}); cmd_get_config_();  publish_filter_remaining_days_(); }
   void cmd_reset_filter_() { enqueue_(222, 1, {0x00}); }
 
   std::vector<uint8_t> time_in_bytes_() {
