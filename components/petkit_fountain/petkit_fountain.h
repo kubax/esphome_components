@@ -504,6 +504,26 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
     }
   }
 
+  void set_smart_on_(uint8_t v) {
+    apply_config_partial_("smart_on",
+      v, -1,      // smart_on, smart_off
+      -1, -1,     // light_sw, brightness
+      -1,         // dnd_sw
+      -1, -1,     // light_start, light_end
+      -1, -1      // dnd_start, dnd_end
+    );
+  }
+  
+  void set_smart_off_(uint8_t v) {
+    apply_config_partial_("smart_off",
+      -1, v,
+      -1, -1,
+      -1,
+      -1, -1,
+      -1, -1
+    );
+  }
+
  private:
   static constexpr const char *TAG = "petkit_fountain";
 
@@ -717,26 +737,6 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   
     out.ok = true;
     return out;
-  }
-
-  void set_smart_on_(uint8_t v) {
-    apply_config_partial_("smart_on",
-      v, -1,      // smart_on, smart_off
-      -1, -1,     // light_sw, brightness
-      -1,         // dnd_sw
-      -1, -1,     // light_start, light_end
-      -1, -1      // dnd_start, dnd_end
-    );
-  }
-  
-  void set_smart_off_(uint8_t v) {
-    apply_config_partial_("smart_off",
-      -1, v,
-      -1, -1,
-      -1,
-      -1, -1,
-      -1, -1
-    );
   }
 
   struct PetkitAck {
