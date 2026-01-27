@@ -580,8 +580,8 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   uint8_t last_mode_{1};
   std::vector<uint8_t> last_config_payload_;  // 13 bytes baseline for CMD221
   uint8_t last_filter_percent_raw_{0};  // 0..100
-  uint16_t last_smart_on_min_{0};        // 0..1439 (min)
-  uint16_t last_smart_off_min_{0};       // 0..1439 (min)
+  uint8_t last_smart_on_min_{0};        // 0..255 (min)
+  uint8_t last_smart_off_min_{0};       // 0..255 (min)
 
 
   // tx queue
@@ -1030,7 +1030,6 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
 
       last_mode_ = mode;
       last_filter_percent_raw_ = filter_percent;
-      publish_filter_remaining_days_();
 
     
       // --- publish base state ---
@@ -1069,6 +1068,7 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
 
       last_smart_on_min_  = smart_on;
       last_smart_off_min_ = smart_off;
+      publish_filter_remaining_days_();
 
     
       if (smart_working_time_) smart_working_time_->publish_state(smart_on);
@@ -1125,6 +1125,10 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
         ESP_LOGI(TAG, "CMD210->D2: power=%u mode=%u dnd=%u warn(break=%u lack=%u filter=%u) filter=%u run=%u",
                  st.power, st.mode, st.night_dnd, st.breakdown_warn, st.lack_warn, st.filter_warn,
                  st.filter_percent, st.run_status);
+        last_mode_ = st.mode;
+        last_filter_percent_raw_ = st.filter_percent;
+        publish_filter_remaining_days_();
+
     
         // publish to sensors if you have them
         if (power_) power_->publish_state(st.power);
@@ -1151,6 +1155,10 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
         ESP_LOGW(TAG, "CMD0xD3 parse failed (len=%u)", (unsigned) len);
         return;
       }
+      last_smart_on_min_  = cfg.smart_on;
+      last_smart_off_min_ = cfg.smart_off;
+      publish_filter_remaining_days_();
+
     
       // 1) baseline config setzen (damit CMD221 möglich wird)
       last_config_payload_.assign({
