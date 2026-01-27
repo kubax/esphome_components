@@ -15,12 +15,17 @@ CONF_LIGHT_SCHEDULE_END_MIN = "light_schedule_end_min"
 CONF_DND_START_MIN = "dnd_start_min"
 CONF_DND_END_MIN = "dnd_end_min"
 
+CONF_SMART_ON = "smart_on"
+CONF_SMART_OFF = "smart_off"
+
 petkit_ns = cg.esphome_ns.namespace("petkit_fountain")
 PetkitFountain = petkit_ns.class_("PetkitFountain")
 
 PetkitBrightnessNumber = petkit_ns.class_("PetkitBrightnessNumber", number.Number)
 PetkitTimeNumber = petkit_ns.class_("PetkitTimeNumber", number.Number)
 
+PetkitSmartOnNumber = petkit_ns.class_("PetkitSmartOnNumber", number.Number)
+PetkitSmartOffNumber = petkit_ns.class_("PetkitSmartOffNumber", number.Number)
 
 def _num_schema(class_, default_min, default_max, default_step):
     # Allow YAML to override min/max/step
@@ -48,6 +53,8 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_LIGHT_SCHEDULE_END_MIN): _num_schema(PetkitTimeNumber, 0, 1439, 1),
         cv.Optional(CONF_DND_START_MIN): _num_schema(PetkitTimeNumber, 0, 1439, 1),
         cv.Optional(CONF_DND_END_MIN): _num_schema(PetkitTimeNumber, 0, 1439, 1),
+        cv.Optional(CONF_SMART_ON): _num_schema(PetkitSmartOnNumber, 0, 255, 1),
+        cv.Optional(CONF_SMART_OFF): _num_schema(PetkitSmartOffNumber, 0, 255, 1),
     }
 )
 
@@ -99,3 +106,13 @@ async def to_code(config):
         cg.add(n.set_parent(parent))
         cg.add(n.set_kind(3))
         cg.add(parent.set_time_number(n))
+
+    if CONF_SMART_ON in config:
+        cfg = config[CONF_SMART_ON]
+        n = await _new_num(cfg)
+        cg.add(parent.set_smart_on_number(n))
+    
+    if CONF_SMART_OFF in config:
+        cfg = config[CONF_SMART_OFF]
+        n = await _new_num(cfg)
+        cg.add(parent.set_smart_off_number(n))

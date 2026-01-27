@@ -149,6 +149,16 @@ class PetkitTimeNumber : public PetkitBaseNumber {
   Kind kind_{LIGHT_START};
 };
 
+class PetkitSmartOnNumber : public PetkitBaseNumber {
+ protected:
+  void control(float value) override;
+};
+
+class PetkitSmartOffNumber : public PetkitBaseNumber {
+ protected:
+  void control(float value) override;
+};
+
 // ---------------- Select entity ----------------
 class PetkitModeSelect : public select::Select {
  public:
@@ -219,6 +229,8 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   void set_light_end_number(number::Number *n) { light_end_num_ = n; }
   void set_dnd_start_number(number::Number *n) { dnd_start_num_ = n; }
   void set_dnd_end_number(number::Number *n) { dnd_end_num_ = n; }
+  void set_smart_on_number(PetkitSmartOnNumber *n) { smart_on_num_ = n; n->set_parent(this); }
+  void set_smart_off_number(PetkitSmartOffNumber *n) { smart_off_num_ = n; n->set_parent(this); }
   
   // text sensor setter
   void set_serial_text_sensor(text_sensor::TextSensor *t) { serial_text_ = t; }
@@ -564,6 +576,9 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   number::Number *light_end_num_{nullptr};
   number::Number *dnd_start_num_{nullptr};
   number::Number *dnd_end_num_{nullptr};
+  PetkitSmartOnNumber *smart_on_num_{nullptr};
+  PetkitSmartOffNumber *smart_off_num_{nullptr};
+
   
   // select (aus select.py)
   select::Select *mode_sel_{nullptr};
@@ -704,6 +719,25 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
     return out;
   }
 
+  void set_smart_on_(uint8_t v) {
+    apply_config_partial_("smart_on",
+      v, -1,      // smart_on, smart_off
+      -1, -1,     // light_sw, brightness
+      -1,         // dnd_sw
+      -1, -1,     // light_start, light_end
+      -1, -1      // dnd_start, dnd_end
+    );
+  }
+  
+  void set_smart_off_(uint8_t v) {
+    apply_config_partial_("smart_off",
+      -1, v,
+      -1, -1,
+      -1,
+      -1, -1,
+      -1, -1
+    );
+  }
 
   struct PetkitAck {
     bool ok{false};
@@ -1181,6 +1215,8 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
     
       // 2) Sensoren publishen (falls in YAML vorhanden)
       if (smart_working_time_) smart_working_time_->publish_state(cfg.smart_on);
+      if (smart_on_num_)  smart_on_num_->publish_state((float) cfg.smart_on);
+      if (smart_off_num_) smart_off_num_->publish_state((float) cfg.smart_off);
       if (smart_sleep_time_)   smart_sleep_time_->publish_state(cfg.smart_off);
     
       if (light_switch_)               light_switch_->publish_state(cfg.light_sw);
@@ -1260,6 +1296,25 @@ inline void PetkitActionButton::press_action() {
   if (!this->parent_) return;
   this->parent_->do_action(action_);
 }
+
+inline void PetkitSmartOnNumber::control(float value) {
+  if (!this->parent_) return;
+  int v = (int) lroundf(value);
+  if (v < 0) v = 0;
+  if (v > 255) v = 255;   // 1 Byte
+  this->parent_->set_smart_on_((uint8_t) v);
+  this->publish_state((float) v);
+}
+
+inline void PetkitSmartOffNumber::control(float value) {
+  if (!this->parent_) return;
+  int v = (int) lroundf(value);
+  if (v < 0) v = 0;
+  if (v > 255) v = 255;   // 1 Byte
+  this->parent_->set_smart_off_((uint8_t) v);
+  this->publish_state((float) v);
+}
+
 
 }  // namespace petkit_fountain
 }  // namespace esphome
