@@ -262,5 +262,14 @@ This is normal for many models; treat brightness as a level selector rather than
 
 ---
 
+### Inspiration, Resources & Acknowledgements
+
+- [RobertD502](https://github.com/RobertD502): [Home Assistant Petkit Custom Integration](https://www.reddit.com/r/homeassistant/comments/145ebp1/petkit_custom_integration/)
+- [RobertD502](https://github.com/RobertD502): [petkitaio](https://github.com/RobertD502/petkitaio)
+- [PetKit Eversweet Pro 3 - Decoding BLE response](https://colab.research.google.com/drive/1gWwLz1Wi_WujvvSaTJpPMW5i3YideSAb#scrollTo=RWO3w4-XTmNd)
+- [slespersen](https://github.com/slespersen): [PetkitW5BLEMQTT](https://github.com/slespersen/PetkitW5BLEMQTT)
+
+---
+
 ## Disclaimer
 This is a community project. Petkit’s BLE protocol is undocumented and may differ by model/firmware. Use at your own risk.
