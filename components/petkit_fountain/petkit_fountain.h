@@ -937,11 +937,7 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   void cmd_set_mode_(bool on, uint8_t mode) { enqueue_(220, 1, {(uint8_t) (on ? 1 : 0), mode}); cmd_get_config_();  publish_filter_remaining_days_(); }
   void cmd_reset_filter_() { enqueue_(222, 1, {0x00}); }
 
-  std::vector<uint8_t> time_in_bytes_() {
-    uint32_t t = (uint32_t) ::time(nullptr);
-    return { (uint8_t)((t >> 24) & 0xFF), (uint8_t)((t >> 16) & 0xFF), (uint8_t)((t >> 8) & 0xFF), (uint8_t)(t & 0xFF) };
-  }
-  void cmd_set_datetime_() { enqueue_(84, 1, time_in_bytes_()); }
+  void cmd_set_datetime_() { enqueue_(84, 1, build_time_bytes_()); }
 
   // placeholders (need CMD213 parsing to work)
   void cmd_init_session_() { ESP_LOGW(TAG, "CMD73 not implemented yet (needs CMD213 parsing)"); }
