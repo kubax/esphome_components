@@ -213,6 +213,71 @@ text_sensor:
 
 ---
 
+## Stability Note (Reboots / Stack Size)
+
+If the ESP reboots under BLE load (especially with `logger: DEBUG`), increasing the loop task stack can help.
+
+```yaml
+esp32:
+  board: wemos_d1_mini32
+  framework:
+    type: esp-idf
+    advanced:
+      loop_task_stack_size: 32768
+```
+
+Use this as a stability workaround when logs show stack-related crashes (stack canary, stack overflow, Guru Meditation).  
+After stabilizing, you can try smaller values to recover RAM.
+
+---
+
+## Multiple Fountains On One ESP (Separate HA Devices)
+
+You can run multiple Petkit fountains from one ESP by creating:
+- one `ble_client` per fountain (`mac_address` differs),
+- one `sensor: - platform: petkit_fountain` parent per fountain,
+- optional ESPHome `sub-devices` + `device_id` for clean separation in Home Assistant.
+
+```yaml
+esphome:
+  name: petkit-ble-hub
+  min_version: 2025.7.0
+  devices:
+    - id: fountain_kitchen
+      name: "Petkit Kitchen"
+    - id: fountain_hall
+      name: "Petkit Hall"
+
+ble_client:
+  - mac_address: "AA:BB:CC:DD:EE:01"
+    id: petkit_client_1
+    auto_connect: true
+  - mac_address: "AA:BB:CC:DD:EE:02"
+    id: petkit_client_2
+    auto_connect: true
+
+sensor:
+  - platform: petkit_fountain
+    id: petkit_1
+    ble_client_id: petkit_client_1
+    service_uuid: "0000aaa0-0000-1000-8000-00805f9b34fb"
+    notify_uuid: "0000aaa1-0000-1000-8000-00805f9b34fb"
+    write_uuid: "0000aaa2-0000-1000-8000-00805f9b34fb"
+    filter_percent: { name: "Kitchen Filter %", device_id: fountain_kitchen }
+
+  - platform: petkit_fountain
+    id: petkit_2
+    ble_client_id: petkit_client_2
+    service_uuid: "0000aaa0-0000-1000-8000-00805f9b34fb"
+    notify_uuid: "0000aaa1-0000-1000-8000-00805f9b34fb"
+    write_uuid: "0000aaa2-0000-1000-8000-00805f9b34fb"
+    filter_percent: { name: "Hall Filter %", device_id: fountain_hall }
+```
+
+Apply the same pattern to `switch`, `number`, `select`, `button`, `text_sensor`, and `binary_sensor` entities by setting `device_id` per fountain.
+
+---
+
 ## How It Works
 
 ### BLE Connection
