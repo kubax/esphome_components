@@ -175,7 +175,7 @@ class PetkitModeSelect : public select::Select {
 // ---------------- Button entity ----------------
 class PetkitActionButton : public button::Button {
  public:
-  enum Action { REFRESH, RESET_FILTER, SET_DATETIME, INIT_SESSION, SYNC };
+  enum Action { REFRESH, READ_CONFIG, RESET_FILTER, SET_DATETIME, INIT_SESSION, SYNC };
   void set_parent(PetkitFountain *p) { parent_ = p; }
   void set_action(Action a) { action_ = a; }
   void set_action(int a) { action_ = (Action) a; }
@@ -501,6 +501,7 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
   void do_action(PetkitActionButton::Action a) {
     switch (a) {
       case PetkitActionButton::REFRESH: cmd_refresh_(); break;
+      case PetkitActionButton::READ_CONFIG: cmd_get_config_(); break;
       case PetkitActionButton::RESET_FILTER: cmd_reset_filter_(); break;
       case PetkitActionButton::SET_DATETIME: cmd_set_datetime_(); break;
       case PetkitActionButton::INIT_SESSION: cmd_init_session_(); break;
