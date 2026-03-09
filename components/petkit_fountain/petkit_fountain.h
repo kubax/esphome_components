@@ -1125,6 +1125,25 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
       // --- runtimes ---
       if (water_pump_runtime_seconds_) water_pump_runtime_seconds_->publish_state((float) pump_runtime);
       if (today_pump_runtime_seconds_) today_pump_runtime_seconds_->publish_state((float) today_runtime);
+
+      // Optional extended fields on some firmwares.
+      if (today_purified_water_times_) {
+        if (len > 37) {
+          today_purified_water_times_->publish_state((float) data[37]);
+        } else {
+          today_purified_water_times_->publish_state(NAN);
+        }
+      }
+      if (today_energy_kwh_) {
+        if (len > 41) {
+          const uint32_t energy_raw =
+              ((uint32_t)data[38] << 24) | ((uint32_t)data[39] << 16) | ((uint32_t)data[40] << 8) |
+              (uint32_t)data[41];
+          today_energy_kwh_->publish_state((float) energy_raw);
+        } else {
+          today_energy_kwh_->publish_state(NAN);
+        }
+      }
     
       // --- settings block ---
       const uint8_t smart_on  = data[24];
