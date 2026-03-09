@@ -99,10 +99,34 @@ sensor:
     notify_uuid: ${notify_uuid}
     write_uuid: ${write_uuid}
 
-    # Basic state sensors
+    # State/config sensors
     power: { name: "Petkit Power (raw)" }
     mode: { name: "Petkit Mode (raw)" }
+    is_night_dnd: { name: "Petkit Night DND (raw)" }
     filter_percent: { name: "Petkit Filter %" }
+    run_status: { name: "Petkit Run Status (raw)" }
+    water_pump_runtime_seconds: { name: "Petkit Pump Runtime (s)" }
+    today_pump_runtime_seconds: { name: "Petkit Today Pump Runtime (s)" }
+    today_purified_water_times: { name: "Petkit Today Purified Water Times" }
+    today_energy_kwh: { name: "Petkit Today Energy (raw)" }
+    smart_working_time: { name: "Petkit Smart Working Time (min)" }
+    smart_sleep_time: { name: "Petkit Smart Sleep Time (min)" }
+    light_switch: { name: "Petkit Light Switch (raw)" }
+    light_brightness: { name: "Petkit Light Brightness (raw)" }
+    light_schedule_start_min: { name: "Petkit Light Start (raw min)" }
+    light_schedule_end_min: { name: "Petkit Light End (raw min)" }
+    dnd_switch: { name: "Petkit DND Switch (raw)" }
+    dnd_start_min: { name: "Petkit DND Start (raw min)" }
+    dnd_end_min: { name: "Petkit DND End (raw min)" }
+    filter_remaining_days: { name: "Petkit Filter Remaining Days (calc)" }
+
+# ---------- Binary sensors (warnings) ----------
+binary_sensor:
+  - platform: petkit_fountain
+    parent_id: petkit
+    lack_warning: { name: "Petkit Lack Warning" }
+    breakdown_warning: { name: "Petkit Breakdown Warning" }
+    filter_warning: { name: "Petkit Filter Warning" }
 
 # ---------- Switches (controls) ----------
 switch:
@@ -146,6 +170,18 @@ number:
       name: "Petkit DND End (min)"
       min_value: 0
       max_value: 1439
+      step: 1
+
+    smart_on:
+      name: "Petkit Smart On (min)"
+      min_value: 0
+      max_value: 255
+      step: 1
+
+    smart_off:
+      name: "Petkit Smart Off (min)"
+      min_value: 0
+      max_value: 255
       step: 1
 
 # ---------- Select (mode control) ----------
@@ -218,7 +254,27 @@ If you skip CMD211, you may still see periodic `E6` frames, but config values (l
 - `power` (raw power state)
 - `mode` (raw mode)
 - `filter_percent`
-- optional: more fields can be exposed depending on the parser support (pump runtime, warnings, run_status, etc.)
+- `is_night_dnd`
+- `run_status`
+- `water_pump_runtime_seconds`
+- `today_pump_runtime_seconds`
+- `today_purified_water_times`
+- `today_energy_kwh`
+- `smart_working_time`
+- `smart_sleep_time`
+- `light_switch` (raw)
+- `light_brightness` (raw)
+- `light_schedule_start_min` (raw)
+- `light_schedule_end_min` (raw)
+- `dnd_switch` (raw)
+- `dnd_start_min` (raw)
+- `dnd_end_min` (raw)
+- `filter_remaining_days` (calculated)
+
+### Binary Sensors
+- `lack_warning`
+- `breakdown_warning`
+- `filter_warning`
 
 ### Switches
 - `power_switch`
@@ -231,6 +287,8 @@ If you skip CMD211, you may still see periodic `E6` frames, but config values (l
 - `light_schedule_end_min`
 - `dnd_start_min` (0..1439)
 - `dnd_end_min`
+- `smart_on` (0..255)
+- `smart_off` (0..255)
 
 ### Select
 - `mode_select` (e.g. normal/smart)
