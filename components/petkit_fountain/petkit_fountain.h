@@ -1077,6 +1077,7 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
       const uint32_t today_runtime =
           ((uint32_t)data[20] << 24) | ((uint32_t)data[21] << 16) | ((uint32_t)data[22] << 8) | (uint32_t)data[23];
 
+      last_power_ = power;
       last_mode_ = mode;
       last_filter_percent_raw_ = filter_percent;
 
@@ -1175,6 +1176,7 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
         ESP_LOGI(TAG, "CMD210->D2: power=%u mode=%u dnd=%u warn(break=%u lack=%u filter=%u) filter=%u run=%u",
                  st.power, st.mode, st.night_dnd, st.breakdown_warn, st.lack_warn, st.filter_warn,
                  st.filter_percent, st.run_status);
+        last_power_ = st.power;
         last_mode_ = st.mode;
         last_filter_percent_raw_ = st.filter_percent;
         publish_filter_remaining_days_();
