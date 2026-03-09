@@ -939,9 +939,34 @@ class PetkitFountain : public PollingComponent, public ble_client::BLEClientNode
 
   void cmd_set_datetime_() { enqueue_(84, 1, build_time_bytes_()); }
 
-  // placeholders (need CMD213 parsing to work)
-  void cmd_init_session_() { ESP_LOGW(TAG, "CMD73 not implemented yet (needs CMD213 parsing)"); }
-  void cmd_sync_() { ESP_LOGW(TAG, "CMD86 not implemented yet (needs CMD73 secret)"); }
+  void cmd_init_session_() {
+    if (!have_secret_) {
+      ESP_LOGW(TAG, "CMD73 requested without secret; requesting CMD213 first");
+      enqueue_(213, 1, {0x00, 0x00});
+      return;
+    }
+    std::vector<uint8_t> payload;
+    payload.reserve(2 + 8 + 8);
+    payload.push_back(0x00);
+    payload.push_back(0x00);
+    payload.insert(payload.end(), device_id8_.begin(), device_id8_.end());
+    payload.insert(payload.end(), secret_.begin(), secret_.end());
+    enqueue_(73, 1, payload);
+  }
+
+  void cmd_sync_() {
+    if (!have_secret_) {
+      ESP_LOGW(TAG, "CMD86 requested without secret; requesting CMD213 first");
+      enqueue_(213, 1, {0x00, 0x00});
+      return;
+    }
+    std::vector<uint8_t> payload;
+    payload.reserve(2 + 8);
+    payload.push_back(0x00);
+    payload.push_back(0x00);
+    payload.insert(payload.end(), secret_.begin(), secret_.end());
+    enqueue_(86, 1, payload);
+  }
 
   void apply_config_partial_(const char *reason,
                             int smart_work, int smart_sleep,
